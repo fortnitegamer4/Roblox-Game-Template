@@ -72,7 +72,7 @@ function Local.CreateAlienGui()
     frame.Name = "Frame"
     frame.AnchorPoint = Vector2.new(0, 0)
     frame.Position = UDim2.fromOffset(16, 84)
-    frame.Size = UDim2.fromOffset(280, 250)
+    frame.Size = UDim2.fromOffset(320, 420)
     frame.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
     frame.BackgroundTransparency = 0.08
     frame.BorderSizePixel = 0
@@ -94,7 +94,7 @@ function Local.CreateAlienGui()
     latest.Name = "Latest"
     latest.BackgroundTransparency = 1
     latest.Position = UDim2.fromOffset(14, 42)
-    latest.Size = UDim2.fromOffset(252, 50)
+    latest.Size = UDim2.fromOffset(292, 50)
     latest.Font = Enum.Font.GothamMedium
     latest.Text = "No alien scanned yet"
     latest.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -108,7 +108,7 @@ function Local.CreateAlienGui()
     scanCost.Name = "ScanCost"
     scanCost.BackgroundTransparency = 1
     scanCost.Position = UDim2.fromOffset(14, 92)
-    scanCost.Size = UDim2.fromOffset(252, 20)
+    scanCost.Size = UDim2.fromOffset(292, 20)
     scanCost.Font = Enum.Font.Gotham
     scanCost.Text = "Scan Cost: 0 Fuel"
     scanCost.TextColor3 = Color3.fromRGB(230, 240, 255)
@@ -120,7 +120,7 @@ function Local.CreateAlienGui()
     crewPower.Name = "CrewPower"
     crewPower.BackgroundTransparency = 1
     crewPower.Position = UDim2.fromOffset(14, 116)
-    crewPower.Size = UDim2.fromOffset(252, 20)
+    crewPower.Size = UDim2.fromOffset(292, 20)
     crewPower.Font = Enum.Font.Gotham
     crewPower.Text = "Crew Power: 0"
     crewPower.TextColor3 = Color3.fromRGB(230, 240, 255)
@@ -132,7 +132,7 @@ function Local.CreateAlienGui()
     fuelPerSecond.Name = "FuelPerSecond"
     fuelPerSecond.BackgroundTransparency = 1
     fuelPerSecond.Position = UDim2.fromOffset(14, 140)
-    fuelPerSecond.Size = UDim2.fromOffset(252, 20)
+    fuelPerSecond.Size = UDim2.fromOffset(292, 20)
     fuelPerSecond.Font = Enum.Font.Gotham
     fuelPerSecond.Text = "Fuel/sec: 0"
     fuelPerSecond.TextColor3 = Color3.fromRGB(230, 240, 255)
@@ -144,7 +144,7 @@ function Local.CreateAlienGui()
     status.Name = "Status"
     status.BackgroundTransparency = 1
     status.Position = UDim2.fromOffset(14, 164)
-    status.Size = UDim2.fromOffset(252, 20)
+    status.Size = UDim2.fromOffset(292, 20)
     status.Font = Enum.Font.GothamMedium
     status.Text = "Scanner Ready"
     status.TextColor3 = Color3.fromRGB(170, 255, 190)
@@ -166,7 +166,7 @@ function Local.CreateAlienGui()
 
     local equipBestButton = Instance.new("TextButton")
     equipBestButton.Name = "EquipBestButton"
-    equipBestButton.Position = UDim2.fromOffset(146, 202)
+    equipBestButton.Position = UDim2.fromOffset(150, 202)
     equipBestButton.Size = UDim2.fromOffset(120, 36)
     equipBestButton.BackgroundColor3 = Color3.fromRGB(81, 190, 120)
     equipBestButton.BorderSizePixel = 0
@@ -175,6 +175,77 @@ function Local.CreateAlienGui()
     equipBestButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     equipBestButton.TextSize = 15
     equipBestButton.Parent = frame
+
+    local upgradesTitle = Instance.new("TextLabel")
+    upgradesTitle.Name = "UpgradesTitle"
+    upgradesTitle.BackgroundTransparency = 1
+    upgradesTitle.Position = UDim2.fromOffset(14, 250)
+    upgradesTitle.Size = UDim2.fromOffset(292, 20)
+    upgradesTitle.Font = Enum.Font.GothamBold
+    upgradesTitle.Text = "Scanner Upgrades"
+    upgradesTitle.TextColor3 = Color3.fromRGB(180, 235, 255)
+    upgradesTitle.TextSize = 15
+    upgradesTitle.TextXAlignment = Enum.TextXAlignment.Left
+    upgradesTitle.Parent = frame
+
+    local upgrades = Instance.new("Frame")
+    upgrades.Name = "Upgrades"
+    upgrades.BackgroundTransparency = 1
+    upgrades.Position = UDim2.fromOffset(14, 276)
+    upgrades.Size = UDim2.fromOffset(292, 128)
+    upgrades.Parent = frame
+
+    local upgradeIds = {
+        "LuckLevel",
+        "RollSpeedLevel",
+        "FuelIncomeLevel",
+    }
+
+    for index, upgradeId in upgradeIds do
+        local row = Instance.new("Frame")
+        row.Name = upgradeId
+        row.BackgroundTransparency = 1
+        row.Position = UDim2.fromOffset(0, (index - 1) * 42)
+        row.Size = UDim2.fromOffset(292, 38)
+        row.Parent = upgrades
+
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.BackgroundTransparency = 1
+        label.Position = UDim2.fromOffset(0, 0)
+        label.Size = UDim2.fromOffset(190, 18)
+        label.Font = Enum.Font.GothamMedium
+        label.Text = upgradeId
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextSize = 13
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = row
+
+        local detail = Instance.new("TextLabel")
+        detail.Name = "Detail"
+        detail.BackgroundTransparency = 1
+        detail.Position = UDim2.fromOffset(0, 18)
+        detail.Size = UDim2.fromOffset(190, 18)
+        detail.Font = Enum.Font.Gotham
+        detail.Text = "Level 0"
+        detail.TextColor3 = Color3.fromRGB(210, 220, 235)
+        detail.TextSize = 12
+        detail.TextXAlignment = Enum.TextXAlignment.Left
+        detail.Parent = row
+
+        local buy = Instance.new("TextButton")
+        buy.Name = "Buy"
+        buy.AnchorPoint = Vector2.new(1, 0.5)
+        buy.Position = UDim2.new(1, 0, 0.5, 0)
+        buy.Size = UDim2.fromOffset(88, 28)
+        buy.BackgroundColor3 = Color3.fromRGB(81, 190, 120)
+        buy.BorderSizePixel = 0
+        buy.Font = Enum.Font.GothamBold
+        buy.Text = "Buy"
+        buy.TextColor3 = Color3.fromRGB(255, 255, 255)
+        buy.TextSize = 12
+        buy.Parent = row
+    end
 
     local scanSound = Instance.new("Sound")
     scanSound.Name = "ScanSound"

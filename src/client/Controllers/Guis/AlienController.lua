@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local AlienConfig = require(ReplicatedStorage.Configs.AlienConfig)
+local UpgradeConfig = require(ReplicatedStorage.Configs.UpgradeConfig)
 local GuiController = require(script.Parent.Parent.GuiController)
 local Net = require(ReplicatedStorage.Packages.Net)
 local Remotes = require(ReplicatedStorage.Remotes)
@@ -18,6 +19,7 @@ local Local = {}
 local Shared = {}
 
 local currentFuel = 0
+local currentAlienState = nil
 local currentCooldown = AlienConfig.BaseScanCooldown
 local cooldownReadyAt = 0
 
@@ -82,6 +84,38 @@ function Local.ShowRollResult(result)
     cooldownReadyAt = os.clock() + currentCooldown
 end
 
+function Local.UpdateUpgradeRows()
+    if not currentAlienState then
+        return
+    end
+
+    for _, upgradeId in UpgradeConfig.Order do
+        local row = Frame.Upgrades:FindFirstChild(upgradeId)
+        local definition = UpgradeConfig.Upgrades[upgradeId]
+
+        if row and definition then
+            local level = currentAlienState[upgradeId] or 0
+            local cost = UpgradeConfig.GetCost(upgradeId, level)
+
+            row.Label.Text = definition.DisplayName
+
+            if cost then
+                row.Detail.Text = `Level {level}/{definition.MaxLevel} | Cost {cost}`
+                row.Buy.Text = "Buy"
+                row.Buy.Active = true
+                row.Buy.AutoButtonColor = true
+                row.Buy.BackgroundColor3 = if currentFuel >= cost then Color3.fromRGB(81, 190, 120) else Color3.fromRGB(95, 95, 105)
+            else
+                row.Detail.Text = `Level {level}/{definition.MaxLevel} | Maxed`
+                row.Buy.Text = "Max"
+                row.Buy.Active = false
+                row.Buy.AutoButtonColor = false
+                row.Buy.BackgroundColor3 = Color3.fromRGB(95, 95, 105)
+            end
+        end
+    end
+end
+
 function Local.UpdateScanState()
     local remaining = math.max(cooldownReadyAt - os.clock(), 0)
 
@@ -98,28 +132,53 @@ function Local.UpdateScanState()
     Frame.RollButton.AutoButtonColor = true
     Frame.RollButton.Text = "Scan"
 
-    if currentFuel < AlienConfig.ScanCost then
+    if currentAlienState and not currentAlienState.HasUsedFreeScan then
+        Frame.ScanCost.Text = "First Scan Free"
+        Frame.Status.Text = "Scanner Ready"
+        Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+    elseif currentFuel < AlienConfig.ScanCost then
+        Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
         Frame.Status.Text = `Need {AlienConfig.ScanCost} Fuel to scan`
         Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
     else
+        Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
         Frame.Status.Text = "Scanner Ready"
         Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
     end
 end
 
+function Local.ShowUpgradeResult(result)
+    if result.Success then
+        local definition = UpgradeConfig.Upgrades[result.UpgradeId]
+        local displayName = if definition then definition.DisplayName else "Upgrade"
+
+        Frame.Status.Text = `{displayName} upgraded to level {result.Level}`
+        Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+        return
+    end
+
+    Frame.Status.Text = result.Error or "Upgrade failed."
+    Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+end
+
 function Shared.OnStart()
     local requestAlienRoll = Remotes.Client:Get("requestAlienRoll") :: Net.ClientSenderEvent
     local requestEquipBestAliens = Remotes.Client:Get("requestEquipBestAliens") :: Net.ClientSenderEvent
+    local requestUpgradePurchase = Remotes.Client:Get("requestUpgradePurchase") :: Net.ClientSenderEvent
     local alienRollResult = Remotes.Client:Get("alienRollResult") :: Net.ClientListenerEvent
+    local upgradePurchaseResult = Remotes.Client:Get("upgradePurchaseResult") :: Net.ClientListenerEvent
 
     Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
 
     Store:subscribe(Selectors.SelectPlayerFuel(tostring(Player.UserId)), function(fuel)
         currentFuel = fuel or 0
         Local.UpdateScanState()
+        Local.UpdateUpgradeRows()
     end)
 
     Store:subscribe(Selectors.SelectPlayerAliens(tostring(Player.UserId)), function(alienState)
+        currentAlienState = alienState
+
         local crewPower = getCrewPower(alienState)
         local incomeLevel = if alienState then alienState.FuelIncomeLevel else 0
         local rollSpeedLevel = if alienState then alienState.RollSpeedLevel else 0
@@ -130,6 +189,7 @@ function Shared.OnStart()
         Frame.CrewPower.Text = `Crew Power: {crewPower}`
         Frame.FuelPerSecond.Text = `Fuel/sec: {formatNumber(fuelPerSecond)}`
         Local.UpdateScanState()
+        Local.UpdateUpgradeRows()
     end)
 
     Frame.RollButton.Activated:Connect(function()
@@ -145,7 +205,18 @@ function Shared.OnStart()
         requestEquipBestAliens:SendToServer()
     end)
 
+    for _, upgradeId in UpgradeConfig.Order do
+        local row = Frame.Upgrades:FindFirstChild(upgradeId)
+
+        if row then
+            row.Buy.Activated:Connect(function()
+                requestUpgradePurchase:SendToServer(upgradeId)
+            end)
+        end
+    end
+
     alienRollResult:Connect(Local.ShowRollResult)
+    upgradePurchaseResult:Connect(Local.ShowUpgradeResult)
 
     task.spawn(function()
         while true do

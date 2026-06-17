@@ -11,6 +11,7 @@ export type PlayerAlienState = {
     AlienInventory: PlayerData.AlienInventory,
     EquippedAliens: { string },
     AlienIndex: PlayerData.AlienIndex,
+    HasUsedFreeScan: boolean,
     LuckLevel: number,
     RollSpeedLevel: number,
     FuelIncomeLevel: number,
@@ -24,6 +25,8 @@ export type AliensActions = {
     loadPlayerData: (playerId: string, data: PlayerData.PlayerData) -> (),
     closePlayerData: (playerId: string) -> (),
     addAlien: (playerId: string, alien: PlayerData.OwnedAlien) -> (),
+    incrementUpgradeLevel: (playerId: string, upgradeId: string) -> (),
+    markFreeScanUsed: (playerId: string) -> (),
     setEquippedAliens: (playerId: string, equippedAliens: { string }) -> (),
     setRollSpeedLevel: (playerId: string, level: number) -> (),
 }
@@ -33,6 +36,7 @@ local function getData(data: PlayerData.PlayerData): PlayerAlienState
         AlienInventory = data.AlienInventory or {},
         EquippedAliens = data.EquippedAliens or {},
         AlienIndex = data.AlienIndex or {},
+        HasUsedFreeScan = data.HasUsedFreeScan or false,
         LuckLevel = data.LuckLevel or 0,
         RollSpeedLevel = data.RollSpeedLevel or 0,
         FuelIncomeLevel = data.FuelIncomeLevel or 0,
@@ -61,6 +65,31 @@ local aliensSlice: AliensProducer = Reflex.createProducer({}, {
                 AlienInventory = inventory,
                 AlienIndex = index,
             })
+        end)
+    end,
+
+    incrementUpgradeLevel = function(state, playerId: string, upgradeId: string)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            local currentLevel = playerAliens[upgradeId]
+            if typeof(currentLevel) ~= "number" then
+                return playerAliens
+            end
+
+            return Sift.Dictionary.set(playerAliens, upgradeId, currentLevel + 1)
+        end)
+    end,
+
+    markFreeScanUsed = function(state, playerId: string)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            return Sift.Dictionary.set(playerAliens, "HasUsedFreeScan", true)
         end)
     end,
 

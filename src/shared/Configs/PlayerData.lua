@@ -17,16 +17,18 @@ export type PlayerData = {
     AlienInventory: AlienInventory,
     EquippedAliens: { string },
     AlienIndex: AlienIndex,
+    HasUsedFreeScan: boolean,
     LuckLevel: number,
     RollSpeedLevel: number,
     FuelIncomeLevel: number,
 }
 
 local PlayerData: PlayerData = {
-    Fuel = 0,
+    Fuel = 25,
     AlienInventory = {},
     EquippedAliens = {},
     AlienIndex = {},
+    HasUsedFreeScan = false,
     LuckLevel = 0,
     RollSpeedLevel = 0,
     FuelIncomeLevel = 0,

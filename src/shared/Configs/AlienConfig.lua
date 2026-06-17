@@ -1,3 +1,6 @@
+--Future step: cost of roll will not be stationary. different zones will give higher chances for better aliens at a higher price proportional to the achievement itself.
+
+
 export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Secret"
 
 export type AlienDefinition = {

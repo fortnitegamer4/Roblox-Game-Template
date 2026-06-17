@@ -89,22 +89,27 @@ function Shared.RollAlien(player: Player)
         }
     end
 
-    if not FuelService.CanAfford(player, AlienConfig.ScanCost) then
+    local isFreeScan = not alienState.HasUsedFreeScan
+    local scanCost = if isFreeScan then 0 else AlienConfig.ScanCost
+
+    if scanCost > 0 and not FuelService.CanAfford(player, scanCost) then
         return {
             Success = false,
-            Error = `Not enough Fuel. Need {AlienConfig.ScanCost}.`,
+            Error = `Not enough Fuel. Need {scanCost}.`,
             Reason = "NotEnoughFuel",
-            Cost = AlienConfig.ScanCost,
+            Cost = scanCost,
+            IsFreeScan = false,
             Fuel = FuelService.GetFuel(player) or 0,
         }
     end
 
-    if not FuelService.RemoveFuel(player, AlienConfig.ScanCost) then
+    if scanCost > 0 and not FuelService.RemoveFuel(player, scanCost) then
         return {
             Success = false,
             Error = "Unable to spend Fuel right now.",
             Reason = "FuelSpendFailed",
-            Cost = AlienConfig.ScanCost,
+            Cost = scanCost,
+            IsFreeScan = false,
         }
     end
 
@@ -119,13 +124,15 @@ function Shared.RollAlien(player: Player)
     }
 
     Store.addAlien(getPlayerId(player), ownedAlien)
+    Store.markFreeScanUsed(getPlayerId(player))
 
     return {
         Success = true,
         OwnedAlien = ownedAlien,
         Definition = definition,
-        Cost = AlienConfig.ScanCost,
+        Cost = scanCost,
         Cooldown = cooldown,
+        IsFreeScan = isFreeScan,
     }
 end
 
