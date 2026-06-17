@@ -1,18 +1,13 @@
 return {
 	Name = "AdjustBalance";
 	Aliases = { "aB" };
-	Description = "Adjust a player's balance.";
+	Description = "Developer-only command to add or remove test Fuel.";
 	Group = "Admin";
 	Args = {
 		{
-			Type = "currency";
-			Name = "Currency";
-			Description = "";
-		},
-		{
 			Type = "number";
-			Name = "Amount of Clicks";
-			Description = "The amount of Clicks to add or subtract from the Player";
+			Name = "Amount";
+			Description = "Positive numbers add Fuel; negative numbers remove Fuel.";
 		},
 		{
 			Type = "player";

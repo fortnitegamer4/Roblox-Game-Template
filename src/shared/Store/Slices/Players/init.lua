@@ -3,21 +3,23 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Reflex = require(ReplicatedStorage.Packages.Reflex)
 
 local PlayerData = require(ReplicatedStorage.Configs.PlayerData)
-local Balance = require(script.Balance)
+local Aliens = require(script.Aliens)
+local Fuel = require(script.Fuel)
 
 export type PlayerData = PlayerData.PlayerData
-export type PlayerBalance = PlayerData.PlayerBalance
 
 type PlayersProducer = Reflex.Producer<PlayersState, PlayersActions>
 
 export type PlayersState = {
-    balance: Balance.BalanceState
+    aliens: Aliens.AliensState,
+    fuel: Fuel.FuelState
 }
 
-export type PlayersActions = Balance.BalanceActions
+export type PlayersActions = Aliens.AliensActions & Fuel.FuelActions
 
 local playersSlice: PlayersProducer = Reflex.combineProducers({
-    balance = Balance,
+    aliens = Aliens,
+    fuel = Fuel,
 })
 
 return {

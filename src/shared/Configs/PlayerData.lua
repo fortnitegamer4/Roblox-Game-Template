@@ -1,19 +1,35 @@
-export type Currency = "coins" | "gems"
+export type OwnedAlien = {
+    UID: string,
+    AlienId: string,
+    Variant: string?,
+}
 
-export type PlayerBalance = {
-    coins: number,
-    gems: number,
+export type AlienInventory = {
+    [string]: OwnedAlien,
+}
+
+export type AlienIndex = {
+    [string]: boolean,
 }
 
 export type PlayerData = {
-    balance: PlayerBalance
+    Fuel: number,
+    AlienInventory: AlienInventory,
+    EquippedAliens: { string },
+    AlienIndex: AlienIndex,
+    LuckLevel: number,
+    RollSpeedLevel: number,
+    FuelIncomeLevel: number,
 }
 
 local PlayerData: PlayerData = {
-    balance = {
-        coins = 0,
-        gems = 0,
-    }
+    Fuel = 0,
+    AlienInventory = {},
+    EquippedAliens = {},
+    AlienIndex = {},
+    LuckLevel = 0,
+    RollSpeedLevel = 0,
+    FuelIncomeLevel = 0,
 }
 
 return PlayerData

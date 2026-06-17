@@ -3,7 +3,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local Reflex = require(ReplicatedStorage.Packages.Reflex)
 local ProfileStore = require(ServerScriptService.Packages.ProfileService)
 local PlayerData = require(ReplicatedStorage.Configs.PlayerData)
 local Store = require(ServerScriptService.Store)
@@ -35,14 +34,6 @@ function Shared.OnStart()
         Local.CreateProfile(player)
     end
 
-    task.spawn(function()
-        while true do
-            for _, player in Players:GetPlayers() do
-                Store.updateBalance(tostring(player.UserId), "coins", 1)
-            end
-            task.wait(1)
-        end
-    end)
 end
 
 function Local.SetupLeaderstats(player: Player)
@@ -50,16 +41,12 @@ function Local.SetupLeaderstats(player: Player)
     leaderstats.Name = "leaderstats"
     leaderstats.Parent = player
 
-    local coins = Instance.new("NumberValue", leaderstats)
-    coins.Name = "Coins"
+    local fuelValue = Instance.new("NumberValue", leaderstats)
+    fuelValue.Name = "Fuel"
 
-    local gems = Instance.new("NumberValue", leaderstats)
-    gems.Name = "Gems"
-
-    local selector = Selectors.SelectPlayerBalance(tostring(player.UserId))
-    local unsubscribe = Store:subscribe(selector, function(balance)
-        coins.Value = balance.coins or 0
-        gems.Value = balance.gems or 0
+    local selector = Selectors.SelectPlayerFuel(tostring(player.UserId))
+    local unsubscribe = Store:subscribe(selector, function(fuel)
+        fuelValue.Value = fuel or 0
     end)
     Players.PlayerRemoving:Connect(function(leavingPlayer: Player)
         if leavingPlayer == player then

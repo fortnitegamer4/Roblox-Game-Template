@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+ROJO_BIN="$HOME/.aftman/tool-storage/rojo-rbx/rojo/7.4.0/rojo"
+
+if [ ! -x "$ROJO_BIN" ]; then
+    echo "Pinned Rojo 7.4.0 was not found at:"
+    echo "  $ROJO_BIN"
+    echo ""
+    echo "Run 'aftman install' in this project, then try again."
+    exit 1
+fi
+
+exec "$ROJO_BIN" "$@"

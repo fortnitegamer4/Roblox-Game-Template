@@ -1,0 +1,158 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local AlienConfig = require(ReplicatedStorage.Configs.AlienConfig)
+local GuiController = require(script.Parent.Parent.GuiController)
+local Net = require(ReplicatedStorage.Packages.Net)
+local Remotes = require(ReplicatedStorage.Remotes)
+local Store = require(script.Parent.Parent.Parent.Store)
+local Selectors = require(ReplicatedStorage.Store.Selectors)
+
+local Player = Players.LocalPlayer
+
+local Gui = GuiController.Guis.AlienCrew
+local Frame = Gui.Frame
+
+local Local = {}
+local Shared = {}
+
+local currentFuel = 0
+local currentCooldown = AlienConfig.BaseScanCooldown
+local cooldownReadyAt = 0
+
+local function getCrewPower(alienState): number
+    if not alienState then
+        return 0
+    end
+
+    local power = 0
+
+    for _, uid in alienState.EquippedAliens do
+        local ownedAlien = alienState.AlienInventory[uid]
+        local definition = ownedAlien and AlienConfig.ById[ownedAlien.AlienId]
+
+        if definition then
+            power += definition.Power
+        end
+    end
+
+    return power
+end
+
+local function formatNumber(value: number): string
+    if value % 1 == 0 then
+        return tostring(value)
+    end
+
+    return string.format("%.2f", value)
+end
+
+function Local.PlayRollPlaceholder()
+    Frame.RollButton.Text = "Scanning..."
+    Frame.Status.Text = "Scanning..."
+    Frame.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+    Frame.ScanSound:Play()
+
+    local tween = TweenService:Create(
+        Frame,
+        TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true),
+        { BackgroundTransparency = 0 }
+    )
+
+    tween:Play()
+end
+
+function Local.ShowRollResult(result)
+    if not result.Success then
+        Frame.RollButton.Text = "Scan"
+        Frame.Status.Text = result.Error or "Scan failed."
+        Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+        return
+    end
+
+    local definition = result.Definition
+
+    Frame.Latest.Text = `{definition.DisplayName}\n{definition.Rarity} | 1 in {definition.BaseOdds} | {definition.Power} Power`
+    Frame.RollButton.Text = "Scan"
+    Frame.Status.Text = "Scanner cooling down..."
+    Frame.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+
+    currentCooldown = result.Cooldown or currentCooldown
+    cooldownReadyAt = os.clock() + currentCooldown
+end
+
+function Local.UpdateScanState()
+    local remaining = math.max(cooldownReadyAt - os.clock(), 0)
+
+    if remaining > 0 then
+        Frame.RollButton.Active = false
+        Frame.RollButton.AutoButtonColor = false
+        Frame.RollButton.Text = string.format("%.1fs", remaining)
+        Frame.Status.Text = `Cooldown: {string.format("%.1f", remaining)}s`
+        Frame.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+        return
+    end
+
+    Frame.RollButton.Active = true
+    Frame.RollButton.AutoButtonColor = true
+    Frame.RollButton.Text = "Scan"
+
+    if currentFuel < AlienConfig.ScanCost then
+        Frame.Status.Text = `Need {AlienConfig.ScanCost} Fuel to scan`
+        Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+    else
+        Frame.Status.Text = "Scanner Ready"
+        Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+    end
+end
+
+function Shared.OnStart()
+    local requestAlienRoll = Remotes.Client:Get("requestAlienRoll") :: Net.ClientSenderEvent
+    local requestEquipBestAliens = Remotes.Client:Get("requestEquipBestAliens") :: Net.ClientSenderEvent
+    local alienRollResult = Remotes.Client:Get("alienRollResult") :: Net.ClientListenerEvent
+
+    Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
+
+    Store:subscribe(Selectors.SelectPlayerFuel(tostring(Player.UserId)), function(fuel)
+        currentFuel = fuel or 0
+        Local.UpdateScanState()
+    end)
+
+    Store:subscribe(Selectors.SelectPlayerAliens(tostring(Player.UserId)), function(alienState)
+        local crewPower = getCrewPower(alienState)
+        local incomeLevel = if alienState then alienState.FuelIncomeLevel else 0
+        local rollSpeedLevel = if alienState then alienState.RollSpeedLevel else 0
+        local fuelPerTick = crewPower * AlienConfig.FuelPerPowerPerTick * (1 + incomeLevel * AlienConfig.FuelIncomePerLevel)
+        local fuelPerSecond = fuelPerTick / AlienConfig.PassiveFuelTickSeconds
+
+        currentCooldown = AlienConfig.GetScanCooldown(rollSpeedLevel)
+        Frame.CrewPower.Text = `Crew Power: {crewPower}`
+        Frame.FuelPerSecond.Text = `Fuel/sec: {formatNumber(fuelPerSecond)}`
+        Local.UpdateScanState()
+    end)
+
+    Frame.RollButton.Activated:Connect(function()
+        if os.clock() < cooldownReadyAt then
+            return
+        end
+
+        Local.PlayRollPlaceholder()
+        requestAlienRoll:SendToServer()
+    end)
+
+    Frame.EquipBestButton.Activated:Connect(function()
+        requestEquipBestAliens:SendToServer()
+    end)
+
+    alienRollResult:Connect(Local.ShowRollResult)
+
+    task.spawn(function()
+        while true do
+            Local.UpdateScanState()
+            task.wait(0.1)
+        end
+    end)
+end
+
+return Shared

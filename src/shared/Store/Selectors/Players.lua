@@ -5,29 +5,43 @@ local Reflex = require(ReplicatedStorage.Packages.Reflex)
 local Slices = require(ReplicatedStorage.Store.Slices)
 local PlayersSlice = require(ReplicatedStorage.Store.Slices.Players)
 
-local function SelectPlayerBalances(playerId: string)
+local function SelectPlayerFuel(playerId: string)
     return function(state: Slices.SharedState)
-        return state.players.balance[playerId]
+        return state.players.fuel[playerId]
+    end
+end
+
+local function SelectPlayerAliens(playerId: string)
+    return function(state: Slices.SharedState)
+        return state.players.aliens[playerId]
     end
 end
 
 local function SelectPlayerData(playerId: string)
     return Reflex.createSelector(
-        SelectPlayerBalances(playerId),
+        SelectPlayerFuel(playerId),
+        SelectPlayerAliens(playerId),
 
-        function(balance: PlayersSlice.PlayerBalance?): PlayersSlice.PlayerData?
-            if not balance then
+        function(fuel: number?, aliens): PlayersSlice.PlayerData?
+            if fuel == nil or not aliens then
                 return
             end
 
             return {
-                balance = balance
+                Fuel = fuel,
+                AlienInventory = aliens.AlienInventory,
+                EquippedAliens = aliens.EquippedAliens,
+                AlienIndex = aliens.AlienIndex,
+                LuckLevel = aliens.LuckLevel,
+                RollSpeedLevel = aliens.RollSpeedLevel,
+                FuelIncomeLevel = aliens.FuelIncomeLevel,
             }
         end
     )
 end
 
 return {
-    SelectPlayerBalance = SelectPlayerBalances,
+    SelectPlayerAliens = SelectPlayerAliens,
+    SelectPlayerFuel = SelectPlayerFuel,
     SelectPlayerData = SelectPlayerData,
 }

@@ -1,10 +1,13 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local Store = require(ServerScriptService.Store)
-local PlayerData = require(ReplicatedStorage.Configs.PlayerData)
+local FuelService = require(ServerScriptService.Services.FuelService)
 
-return function (context, currency: PlayerData.Currency, amount: number, player: Player?)
+return function (context, amount: number, player: Player?)
     player = if player then player else context.Executor
-    Store.updateBalance(tostring(player.UserId), currency, amount)
+
+    if amount > 0 then
+        return FuelService.AddFuel(player, amount)
+    end
+
+    return FuelService.RemoveFuel(player, math.abs(amount))
 end
