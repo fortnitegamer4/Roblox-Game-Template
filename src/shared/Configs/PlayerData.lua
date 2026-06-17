@@ -28,6 +28,9 @@ export type PlayerData = {
     IndexFuelIncomeBonus: number,
     IndexLuckBonus: number,
     IndexRollSpeedBonus: number,
+    HighestHeight: number,
+    TotalLaunches: number,
+    LastLaunchHeight: number,
 }
 
 local PlayerData: PlayerData = {
@@ -45,6 +48,9 @@ local PlayerData: PlayerData = {
     IndexFuelIncomeBonus = 0,
     IndexLuckBonus = 0,
     IndexRollSpeedBonus = 0,
+    HighestHeight = 0,
+    TotalLaunches = 0,
+    LastLaunchHeight = 0,
 }
 
 return PlayerData

@@ -405,9 +405,86 @@ function Local.CreateAlienGui()
     return gui
 end
 
+function Local.CreateRocketTravelGui()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "RocketTravel"
+    gui.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame")
+    frame.Name = "Frame"
+    frame.AnchorPoint = Vector2.new(1, 0)
+    frame.Position = UDim2.new(1, -16, 0, 16)
+    frame.Size = UDim2.fromOffset(270, 230)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
+    frame.BackgroundTransparency = 0.08
+    frame.BorderSizePixel = 0
+    frame.Parent = gui
+
+    local header = Instance.new("TextButton")
+    header.Name = "Header"
+    header.BackgroundTransparency = 1
+    header.Position = UDim2.fromOffset(14, 8)
+    header.Size = UDim2.fromOffset(242, 26)
+    header.Font = Enum.Font.GothamBold
+    header.Text = "Rocket Travel"
+    header.TextColor3 = Color3.fromRGB(180, 235, 255)
+    header.TextSize = 18
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    header.Parent = frame
+
+    local content = Instance.new("Frame")
+    content.Name = "Content"
+    content.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
+    content.BackgroundTransparency = 1
+    content.BorderSizePixel = 0
+    content.Position = UDim2.fromOffset(14, 42)
+    content.Size = UDim2.fromOffset(242, 174)
+    content.Parent = frame
+
+    local labels = {
+        { Name = "LaunchCost", Text = "Launch cost: 0 Fuel", Y = 0 },
+        { Name = "Status", Text = "Ready", Y = 24 },
+        { Name = "Height", Text = "Last height: 0m", Y = 52 },
+        { Name = "Best", Text = "Best height: 0m", Y = 76 },
+        { Name = "Hits", Text = "Hits remaining: 3", Y = 100 },
+        { Name = "RunFuel", Text = "Fuel collected: 0", Y = 124 },
+    }
+
+    for _, definition in labels do
+        local label = Instance.new("TextLabel")
+        label.Name = definition.Name
+        label.BackgroundTransparency = 1
+        label.Position = UDim2.fromOffset(0, definition.Y)
+        label.Size = UDim2.fromOffset(242, 20)
+        label.Font = if definition.Name == "Status" then Enum.Font.GothamMedium else Enum.Font.Gotham
+        label.Text = definition.Text
+        label.TextColor3 = Color3.fromRGB(230, 240, 255)
+        label.TextSize = 14
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = content
+    end
+
+    local launchButton = Instance.new("TextButton")
+    launchButton.Name = "LaunchButton"
+    launchButton.Position = UDim2.fromOffset(0, 150)
+    launchButton.Size = UDim2.fromOffset(242, 36)
+    launchButton.BackgroundColor3 = Color3.fromRGB(49, 132, 255)
+    launchButton.BorderSizePixel = 0
+    launchButton.Font = Enum.Font.GothamBold
+    launchButton.Text = "Launch"
+    launchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    launchButton.TextSize = 15
+    launchButton.Parent = content
+
+    gui.Parent = PlayerGui
+
+    return gui
+end
+
 Shared.Guis = {
     AlienCrew = PlayerGui:FindFirstChild("AlienCrew") or Local.CreateAlienGui(),
     Fuel = PlayerGui:FindFirstChild("Fuel") or Local.CreateFuelGui(),
+    RocketTravel = PlayerGui:FindFirstChild("RocketTravel") or Local.CreateRocketTravelGui(),
 }
 
 return Shared

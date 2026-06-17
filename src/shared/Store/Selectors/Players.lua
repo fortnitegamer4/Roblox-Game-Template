@@ -17,13 +17,20 @@ local function SelectPlayerAliens(playerId: string)
     end
 end
 
+local function SelectPlayerRocketTravel(playerId: string)
+    return function(state: Slices.SharedState)
+        return state.players.rocketTravel[playerId]
+    end
+end
+
 local function SelectPlayerData(playerId: string)
     return Reflex.createSelector(
         SelectPlayerFuel(playerId),
         SelectPlayerAliens(playerId),
+        SelectPlayerRocketTravel(playerId),
 
-        function(fuel: number?, aliens): PlayersSlice.PlayerData?
-            if fuel == nil or not aliens then
+        function(fuel: number?, aliens, rocketTravel): PlayersSlice.PlayerData?
+            if fuel == nil or not aliens or not rocketTravel then
                 return
             end
 
@@ -42,6 +49,9 @@ local function SelectPlayerData(playerId: string)
                 IndexFuelIncomeBonus = aliens.IndexFuelIncomeBonus,
                 IndexLuckBonus = aliens.IndexLuckBonus,
                 IndexRollSpeedBonus = aliens.IndexRollSpeedBonus,
+                HighestHeight = rocketTravel.HighestHeight,
+                TotalLaunches = rocketTravel.TotalLaunches,
+                LastLaunchHeight = rocketTravel.LastLaunchHeight,
             }
         end
     )
@@ -51,4 +61,5 @@ return {
     SelectPlayerAliens = SelectPlayerAliens,
     SelectPlayerFuel = SelectPlayerFuel,
     SelectPlayerData = SelectPlayerData,
+    SelectPlayerRocketTravel = SelectPlayerRocketTravel,
 }

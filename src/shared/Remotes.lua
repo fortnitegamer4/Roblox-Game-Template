@@ -17,4 +17,9 @@ return Net.CreateDefinitions({
     start = Net.Definitions.ClientToServerEvent(),
     upgradePurchaseResult = Net.Definitions.ServerToClientEvent(),
     requestFuelTestGrant = Net.Definitions.ClientToServerEvent(),
+    requestStartLaunch = Net.Definitions.ClientToServerEvent(),
+    requestRocketTravelAction = Net.Definitions.ClientToServerEvent(),
+    launchStarted = Net.Definitions.ServerToClientEvent(),
+    launchEnded = Net.Definitions.ServerToClientEvent(),
+    launchStateUpdate = Net.Definitions.ServerToClientEvent(),
 })
