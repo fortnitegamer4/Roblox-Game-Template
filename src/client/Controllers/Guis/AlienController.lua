@@ -14,6 +14,8 @@ local Player = Players.LocalPlayer
 
 local Gui = GuiController.Guis.AlienCrew
 local Frame = Gui.Frame
+local ScannerContent = Frame.ScannerContent
+local UpgradesContent = Frame.UpgradesContent
 
 local Local = {}
 local Shared = {}
@@ -22,6 +24,8 @@ local currentFuel = 0
 local currentAlienState = nil
 local currentCooldown = AlienConfig.BaseScanCooldown
 local cooldownReadyAt = 0
+local isScannerExpanded = true
+local isUpgradesExpanded = true
 
 local function getCrewPower(alienState): number
     if not alienState then
@@ -51,9 +55,9 @@ local function formatNumber(value: number): string
 end
 
 function Local.PlayRollPlaceholder()
-    Frame.RollButton.Text = "Scanning..."
-    Frame.Status.Text = "Scanning..."
-    Frame.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+    ScannerContent.RollButton.Text = "Scanning..."
+    ScannerContent.Status.Text = "Scanning..."
+    ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
     Frame.ScanSound:Play()
 
     local tween = TweenService:Create(
@@ -67,21 +71,45 @@ end
 
 function Local.ShowRollResult(result)
     if not result.Success then
-        Frame.RollButton.Text = "Scan"
-        Frame.Status.Text = result.Error or "Scan failed."
-        Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+        ScannerContent.RollButton.Text = "Scan"
+        ScannerContent.Status.Text = result.Error or "Scan failed."
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
         return
     end
 
     local definition = result.Definition
 
-    Frame.Latest.Text = `{definition.DisplayName}\n{definition.Rarity} | 1 in {definition.BaseOdds} | {definition.Power} Power`
-    Frame.RollButton.Text = "Scan"
-    Frame.Status.Text = "Scanner cooling down..."
-    Frame.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+    ScannerContent.Latest.Text = `{definition.DisplayName}\n{definition.Rarity} | 1 in {definition.BaseOdds} | {definition.Power} Power`
+    ScannerContent.RollButton.Text = "Scan"
+    ScannerContent.Status.Text = "Scanner cooling down..."
+    ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
 
     currentCooldown = result.Cooldown or currentCooldown
     cooldownReadyAt = os.clock() + currentCooldown
+end
+
+function Local.UpdateLayout()
+    ScannerContent.Visible = isScannerExpanded
+    UpgradesContent.Visible = isUpgradesExpanded
+
+    local y = 10
+    Frame.Scanner.Position = UDim2.fromOffset(14, y)
+    y += 32
+
+    if isScannerExpanded then
+        ScannerContent.Position = UDim2.fromOffset(14, y)
+        y += 208
+    end
+
+    Frame.Upgrades.Position = UDim2.fromOffset(14, y)
+    y += 36
+
+    if isUpgradesExpanded then
+        UpgradesContent.Position = UDim2.fromOffset(14, y)
+        y += 136
+    end
+
+    Frame.Size = UDim2.fromOffset(320, y + 14)
 end
 
 function Local.UpdateUpgradeRows()
@@ -90,7 +118,7 @@ function Local.UpdateUpgradeRows()
     end
 
     for _, upgradeId in UpgradeConfig.Order do
-        local row = Frame.Upgrades:FindFirstChild(upgradeId)
+        local row = UpgradesContent:FindFirstChild(upgradeId)
         local definition = UpgradeConfig.Upgrades[upgradeId]
 
         if row and definition then
@@ -120,26 +148,26 @@ function Local.UpdateScanState()
     local remaining = math.max(cooldownReadyAt - os.clock(), 0)
 
     if remaining > 0 then
-        Frame.RollButton.Active = false
-        Frame.RollButton.AutoButtonColor = false
-        Frame.RollButton.Text = string.format("%.1fs", remaining)
-        Frame.Status.Text = `Cooldown: {string.format("%.1f", remaining)}s`
-        Frame.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+        ScannerContent.RollButton.Active = false
+        ScannerContent.RollButton.AutoButtonColor = false
+        ScannerContent.RollButton.Text = string.format("%.1fs", remaining)
+        ScannerContent.Status.Text = `Cooldown: {string.format("%.1f", remaining)}s`
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
         return
     end
 
-    Frame.RollButton.Active = true
-    Frame.RollButton.AutoButtonColor = true
-    Frame.RollButton.Text = "Scan"
+    ScannerContent.RollButton.Active = true
+    ScannerContent.RollButton.AutoButtonColor = true
+    ScannerContent.RollButton.Text = "Scan"
 
     if currentFuel < AlienConfig.ScanCost then
-        Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
-        Frame.Status.Text = `Need {AlienConfig.ScanCost} Fuel to scan`
-        Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+        ScannerContent.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
+        ScannerContent.Status.Text = `Need {AlienConfig.ScanCost} Fuel to scan`
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
     else
-        Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
-        Frame.Status.Text = "Scanner Ready"
-        Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+        ScannerContent.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
+        ScannerContent.Status.Text = "Scanner Ready"
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
     end
 end
 
@@ -148,13 +176,13 @@ function Local.ShowUpgradeResult(result)
         local definition = UpgradeConfig.Upgrades[result.UpgradeId]
         local displayName = if definition then definition.DisplayName else "Upgrade"
 
-        Frame.Status.Text = `{displayName} upgraded to level {result.Level}`
-        Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+        ScannerContent.Status.Text = `{displayName} upgraded to level {result.Level}`
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
         return
     end
 
-    Frame.Status.Text = result.Error or "Upgrade failed."
-    Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+    ScannerContent.Status.Text = result.Error or "Upgrade failed."
+    ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
 end
 
 function Shared.OnStart()
@@ -164,7 +192,8 @@ function Shared.OnStart()
     local alienRollResult = Remotes.Client:Get("alienRollResult") :: Net.ClientListenerEvent
     local upgradePurchaseResult = Remotes.Client:Get("upgradePurchaseResult") :: Net.ClientListenerEvent
 
-    Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
+    ScannerContent.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
+    Local.UpdateLayout()
 
     Store:subscribe(Selectors.SelectPlayerFuel(tostring(Player.UserId)), function(fuel)
         currentFuel = fuel or 0
@@ -182,13 +211,23 @@ function Shared.OnStart()
         local fuelPerSecond = fuelPerTick / AlienConfig.PassiveFuelTickSeconds
 
         currentCooldown = AlienConfig.GetScanCooldown(rollSpeedLevel)
-        Frame.CrewPower.Text = `Crew Power: {crewPower}`
-        Frame.FuelPerSecond.Text = `Fuel/sec: {formatNumber(fuelPerSecond)}`
+        ScannerContent.CrewPower.Text = `Crew Power: {crewPower}`
+        ScannerContent.FuelPerSecond.Text = `Fuel/sec: {formatNumber(fuelPerSecond)}`
         Local.UpdateScanState()
         Local.UpdateUpgradeRows()
     end)
 
-    Frame.RollButton.Activated:Connect(function()
+    Frame.Scanner.Activated:Connect(function()
+        isScannerExpanded = not isScannerExpanded
+        Local.UpdateLayout()
+    end)
+
+    Frame.Upgrades.Activated:Connect(function()
+        isUpgradesExpanded = not isUpgradesExpanded
+        Local.UpdateLayout()
+    end)
+
+    ScannerContent.RollButton.Activated:Connect(function()
         if os.clock() < cooldownReadyAt then
             return
         end
@@ -197,12 +236,12 @@ function Shared.OnStart()
         requestAlienRoll:SendToServer()
     end)
 
-    Frame.EquipBestButton.Activated:Connect(function()
+    ScannerContent.EquipBestButton.Activated:Connect(function()
         requestEquipBestAliens:SendToServer()
     end)
 
     for _, upgradeId in UpgradeConfig.Order do
-        local row = Frame.Upgrades:FindFirstChild(upgradeId)
+        local row = UpgradesContent:FindFirstChild(upgradeId)
 
         if row then
             row.Buy.Activated:Connect(function()
