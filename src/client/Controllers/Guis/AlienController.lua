@@ -17,6 +17,7 @@ local Frame = Gui.Frame
 local ScannerContent = Frame.ScannerContent
 local UpgradesContent = Frame.UpgradesContent
 local InventoryContent = Frame.InventoryContent
+local IndexContent = Frame.IndexContent
 
 local Local = {}
 local Shared = {}
@@ -25,9 +26,12 @@ local currentFuel = 0
 local currentAlienState = nil
 local currentCooldown = AlienConfig.BaseScanCooldown
 local cooldownReadyAt = 0
+local autoScanEnabled = false
+local lastAutoScanReason = nil
 local isScannerExpanded = true
 local isUpgradesExpanded = true
-local isInventoryExpanded = true
+local isInventoryExpanded = false
+local isIndexExpanded = false
 
 local function getCrewPower(alienState): number
     if not alienState then
@@ -54,6 +58,34 @@ local function formatNumber(value: number): string
     end
 
     return string.format("%.2f", value)
+end
+
+local function getDiscoveryCount(alienState): number
+    if not alienState then
+        return 0
+    end
+
+    local count = 0
+
+    for _ in alienState.AlienIndex do
+        count += 1
+    end
+
+    return count
+end
+
+local function isIndexRewardUnlocked(alienState, reward): boolean
+    if not alienState then
+        return false
+    end
+
+    local discoveryCount = getDiscoveryCount(alienState)
+
+    if reward.RequiresAllEarth then
+        return discoveryCount >= AlienConfig.GetEarthAlienCount()
+    end
+
+    return discoveryCount >= (reward.RequiredDiscoveries or 0)
 end
 
 function Local.PlayRollPlaceholder()
@@ -94,6 +126,7 @@ function Local.UpdateLayout()
     ScannerContent.Visible = isScannerExpanded
     UpgradesContent.Visible = isUpgradesExpanded
     InventoryContent.Visible = isInventoryExpanded
+    IndexContent.Visible = isIndexExpanded
 
     local y = 10
     Frame.Scanner.Position = UDim2.fromOffset(14, y)
@@ -101,7 +134,7 @@ function Local.UpdateLayout()
 
     if isScannerExpanded then
         ScannerContent.Position = UDim2.fromOffset(14, y)
-        y += 208
+        y += 256
     end
 
     Frame.Upgrades.Position = UDim2.fromOffset(14, y)
@@ -118,6 +151,14 @@ function Local.UpdateLayout()
     if isInventoryExpanded then
         InventoryContent.Position = UDim2.fromOffset(14, y)
         y += 238
+    end
+
+    Frame.Index.Position = UDim2.fromOffset(14, y)
+    y += 36
+
+    if isIndexExpanded then
+        IndexContent.Position = UDim2.fromOffset(14, y)
+        y += 294
     end
 
     Frame.Size = UDim2.fromOffset(320, y + 14)
@@ -273,6 +314,159 @@ function Local.RenderInventory(requestAlienInventoryAction)
     end
 end
 
+function Local.UpdateAutoScanUi()
+    local totalScans = if currentAlienState then currentAlienState.TotalScans or 0 else 0
+    local unlocked = currentAlienState
+        and (currentAlienState.AutoScanUnlocked == true or totalScans >= AlienConfig.AutoScanUnlockScans)
+    local progress = `{math.min(totalScans, AlienConfig.AutoScanUnlockScans)}/{AlienConfig.AutoScanUnlockScans} scans`
+
+    if not unlocked then
+        ScannerContent.AutoScanButton.Text = "Auto Scan: Locked"
+        ScannerContent.AutoScanButton.Active = false
+        ScannerContent.AutoScanButton.AutoButtonColor = false
+        ScannerContent.AutoScanButton.BackgroundColor3 = Color3.fromRGB(95, 95, 105)
+        ScannerContent.AutoScanStatus.Text = `Auto Scan Locked ({progress})`
+        ScannerContent.AutoScanStatus.TextColor3 = Color3.fromRGB(230, 240, 255)
+        return
+    end
+
+    ScannerContent.AutoScanButton.Active = true
+    ScannerContent.AutoScanButton.AutoButtonColor = true
+    ScannerContent.AutoScanButton.Text = if autoScanEnabled then "Auto Scan: ON" else "Auto Scan: OFF"
+    ScannerContent.AutoScanButton.BackgroundColor3 = if autoScanEnabled then Color3.fromRGB(81, 190, 120) else Color3.fromRGB(49, 132, 255)
+
+    if autoScanEnabled then
+        ScannerContent.AutoScanStatus.Text = if lastAutoScanReason then `Auto Scan ON ({lastAutoScanReason})` else "Auto Scan ON"
+        ScannerContent.AutoScanStatus.TextColor3 = Color3.fromRGB(170, 255, 190)
+    elseif lastAutoScanReason and lastAutoScanReason ~= "Stopped" then
+        ScannerContent.AutoScanStatus.Text = `Auto Scan stopped: {lastAutoScanReason}`
+        ScannerContent.AutoScanStatus.TextColor3 = Color3.fromRGB(255, 130, 130)
+    else
+        ScannerContent.AutoScanStatus.Text = "Auto Scan Ready"
+        ScannerContent.AutoScanStatus.TextColor3 = Color3.fromRGB(230, 240, 255)
+    end
+end
+
+function Local.RenderIndex(requestIndexRewardClaim)
+    local list = IndexContent.List
+    local rewards = IndexContent.Rewards
+
+    for _, child in list:GetChildren() do
+        child:Destroy()
+    end
+
+    for _, child in rewards:GetChildren() do
+        child:Destroy()
+    end
+
+    local discoveredCount = getDiscoveryCount(currentAlienState)
+    IndexContent.Count.Text = `Discovered {discoveredCount}/{#AlienConfig.Aliens}`
+    list.CanvasSize = UDim2.fromOffset(0, math.max(#AlienConfig.Aliens * 58, list.AbsoluteSize.Y))
+
+    for index, definition in AlienConfig.Aliens do
+        local alienIndex = if currentAlienState then currentAlienState.AlienIndex or {} else {}
+        local discovered = alienIndex[definition.AlienId] == true
+        local row = Instance.new("Frame")
+        row.Name = definition.AlienId
+        row.BackgroundColor3 = if discovered then Color3.fromRGB(18, 22, 32) else Color3.fromRGB(33, 35, 43)
+        row.BackgroundTransparency = 0.12
+        row.BorderSizePixel = 0
+        row.Position = UDim2.fromOffset(0, (index - 1) * 58)
+        row.Size = UDim2.fromOffset(284, 52)
+        row.Parent = list
+
+        local name = Instance.new("TextLabel")
+        name.Name = "Name"
+        name.BackgroundTransparency = 1
+        name.Position = UDim2.fromOffset(8, 5)
+        name.Size = UDim2.fromOffset(268, 18)
+        name.Font = Enum.Font.GothamBold
+        name.Text = if discovered then definition.DisplayName else "???"
+        name.TextColor3 = if discovered then Color3.fromRGB(255, 255, 255) else Color3.fromRGB(175, 180, 190)
+        name.TextSize = 13
+        name.TextXAlignment = Enum.TextXAlignment.Left
+        name.Parent = row
+
+        local powerText = if discovered then `{definition.Power} Power` else "Power ???"
+        local detail = Instance.new("TextLabel")
+        detail.Name = "Detail"
+        detail.BackgroundTransparency = 1
+        detail.Position = UDim2.fromOffset(8, 25)
+        detail.Size = UDim2.fromOffset(268, 20)
+        detail.Font = Enum.Font.Gotham
+        detail.Text = `{definition.Rarity} | 1 in {definition.BaseOdds} | {powerText}`
+        detail.TextColor3 = Color3.fromRGB(210, 220, 235)
+        detail.TextSize = 12
+        detail.TextXAlignment = Enum.TextXAlignment.Left
+        detail.Parent = row
+    end
+
+    rewards.CanvasSize = UDim2.fromOffset(0, math.max(#AlienConfig.IndexRewardOrder * 52, rewards.AbsoluteSize.Y))
+
+    for index, rewardId in AlienConfig.IndexRewardOrder do
+        local reward = AlienConfig.IndexRewards[rewardId]
+        local claimedRewards = if currentAlienState then currentAlienState.ClaimedIndexRewards or {} else {}
+        local claimed = claimedRewards[rewardId] == true
+        local unlocked = isIndexRewardUnlocked(currentAlienState, reward)
+        local requirement = if reward.RequiresAllEarth then `Discover {AlienConfig.GetEarthAlienCount()} Earth aliens` else `Discover {reward.RequiredDiscoveries} aliens`
+
+        local row = Instance.new("Frame")
+        row.Name = rewardId
+        row.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+        row.BackgroundTransparency = 0.12
+        row.BorderSizePixel = 0
+        row.Position = UDim2.fromOffset(0, (index - 1) * 52)
+        row.Size = UDim2.fromOffset(284, 46)
+        row.Parent = rewards
+
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.BackgroundTransparency = 1
+        label.Position = UDim2.fromOffset(8, 4)
+        label.Size = UDim2.fromOffset(166, 18)
+        label.Font = Enum.Font.GothamBold
+        label.Text = reward.DisplayName
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextSize = 12
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = row
+
+        local detail = Instance.new("TextLabel")
+        detail.Name = "Detail"
+        detail.BackgroundTransparency = 1
+        detail.Position = UDim2.fromOffset(8, 22)
+        detail.Size = UDim2.fromOffset(174, 20)
+        detail.Font = Enum.Font.Gotham
+        detail.Text = `{requirement} | {reward.Description}`
+        detail.TextColor3 = Color3.fromRGB(210, 220, 235)
+        detail.TextSize = 10
+        detail.TextXAlignment = Enum.TextXAlignment.Left
+        detail.TextTruncate = Enum.TextTruncate.AtEnd
+        detail.Parent = row
+
+        local claim = Instance.new("TextButton")
+        claim.Name = "Claim"
+        claim.AnchorPoint = Vector2.new(1, 0.5)
+        claim.Position = UDim2.new(1, -8, 0.5, 0)
+        claim.Size = UDim2.fromOffset(84, 28)
+        claim.BackgroundColor3 = if claimed then Color3.fromRGB(95, 95, 105) elseif unlocked then Color3.fromRGB(81, 190, 120) else Color3.fromRGB(95, 95, 105)
+        claim.BorderSizePixel = 0
+        claim.Font = Enum.Font.GothamBold
+        claim.Text = if claimed then "Claimed" elseif unlocked then "Claim" else "Locked"
+        claim.TextColor3 = Color3.fromRGB(255, 255, 255)
+        claim.TextSize = 11
+        claim.Active = unlocked and not claimed
+        claim.AutoButtonColor = unlocked and not claimed
+        claim.Parent = row
+
+        claim.Activated:Connect(function()
+            if unlocked and not claimed then
+                requestIndexRewardClaim:SendToServer(rewardId)
+            end
+        end)
+    end
+end
+
 function Local.UpdateUpgradeRows()
     if not currentAlienState then
         return
@@ -314,6 +508,7 @@ function Local.UpdateScanState()
         ScannerContent.RollButton.Text = string.format("%.1fs", remaining)
         ScannerContent.Status.Text = `Cooldown: {string.format("%.1f", remaining)}s`
         ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 230, 150)
+        Local.UpdateAutoScanUi()
         return
     end
 
@@ -330,6 +525,8 @@ function Local.UpdateScanState()
         ScannerContent.Status.Text = "Scanner Ready"
         ScannerContent.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
     end
+
+    Local.UpdateAutoScanUi()
 end
 
 function Local.ShowUpgradeResult(result)
@@ -348,11 +545,15 @@ end
 
 function Shared.OnStart()
     local requestAlienRoll = Remotes.Client:Get("requestAlienRoll") :: Net.ClientSenderEvent
+    local requestAutoScanToggle = Remotes.Client:Get("requestAutoScanToggle") :: Net.ClientSenderEvent
     local requestEquipBestAliens = Remotes.Client:Get("requestEquipBestAliens") :: Net.ClientSenderEvent
     local requestAlienInventoryAction = Remotes.Client:Get("requestAlienInventoryAction") :: Net.ClientSenderEvent
+    local requestIndexRewardClaim = Remotes.Client:Get("requestIndexRewardClaim") :: Net.ClientSenderEvent
     local requestUpgradePurchase = Remotes.Client:Get("requestUpgradePurchase") :: Net.ClientSenderEvent
     local alienRollResult = Remotes.Client:Get("alienRollResult") :: Net.ClientListenerEvent
+    local autoScanState = Remotes.Client:Get("autoScanState") :: Net.ClientListenerEvent
     local alienInventoryActionResult = Remotes.Client:Get("alienInventoryActionResult") :: Net.ClientListenerEvent
+    local indexRewardResult = Remotes.Client:Get("indexRewardResult") :: Net.ClientListenerEvent
     local upgradePurchaseResult = Remotes.Client:Get("upgradePurchaseResult") :: Net.ClientListenerEvent
 
     ScannerContent.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
@@ -370,15 +571,20 @@ function Shared.OnStart()
         local crewPower = getCrewPower(alienState)
         local incomeLevel = if alienState then alienState.FuelIncomeLevel else 0
         local rollSpeedLevel = if alienState then alienState.RollSpeedLevel else 0
-        local fuelPerTick = crewPower * AlienConfig.FuelPerPowerPerTick * (1 + incomeLevel * AlienConfig.FuelIncomePerLevel)
+        local indexFuelIncomeBonus = if alienState then alienState.IndexFuelIncomeBonus or 0 else 0
+        local indexRollSpeedBonus = if alienState then alienState.IndexRollSpeedBonus or 0 else 0
+        local fuelPerTick = crewPower
+            * AlienConfig.FuelPerPowerPerTick
+            * (1 + incomeLevel * AlienConfig.FuelIncomePerLevel + indexFuelIncomeBonus)
         local fuelPerSecond = fuelPerTick / AlienConfig.PassiveFuelTickSeconds
 
-        currentCooldown = AlienConfig.GetScanCooldown(rollSpeedLevel)
+        currentCooldown = AlienConfig.GetScanCooldown(rollSpeedLevel, indexRollSpeedBonus)
         ScannerContent.CrewPower.Text = `Crew Power: {crewPower}`
         ScannerContent.FuelPerSecond.Text = `Fuel/sec: {formatNumber(fuelPerSecond)}`
         Local.UpdateScanState()
         Local.UpdateUpgradeRows()
         Local.RenderInventory(requestAlienInventoryAction)
+        Local.RenderIndex(requestIndexRewardClaim)
     end)
 
     Frame.Scanner.Activated:Connect(function()
@@ -396,6 +602,11 @@ function Shared.OnStart()
         Local.UpdateLayout()
     end)
 
+    Frame.Index.Activated:Connect(function()
+        isIndexExpanded = not isIndexExpanded
+        Local.UpdateLayout()
+    end)
+
     ScannerContent.RollButton.Activated:Connect(function()
         if os.clock() < cooldownReadyAt then
             return
@@ -407,6 +618,21 @@ function Shared.OnStart()
 
     ScannerContent.EquipBestButton.Activated:Connect(function()
         requestEquipBestAliens:SendToServer()
+    end)
+
+    ScannerContent.AutoScanButton.Activated:Connect(function()
+        if not currentAlienState then
+            return
+        end
+
+        local totalScans = currentAlienState.TotalScans or 0
+        local unlocked = currentAlienState.AutoScanUnlocked == true or totalScans >= AlienConfig.AutoScanUnlockScans
+
+        if not unlocked then
+            return
+        end
+
+        requestAutoScanToggle:SendToServer(not autoScanEnabled)
     end)
 
     InventoryContent.EquipBestButton.Activated:Connect(function()
@@ -424,6 +650,11 @@ function Shared.OnStart()
     end
 
     alienRollResult:Connect(Local.ShowRollResult)
+    autoScanState:Connect(function(result)
+        autoScanEnabled = result.Enabled == true
+        lastAutoScanReason = result.Reason
+        Local.UpdateAutoScanUi()
+    end)
     alienInventoryActionResult:Connect(function(result)
         if result.Success then
             ScannerContent.Status.Text = "Inventory updated"
@@ -432,6 +663,16 @@ function Shared.OnStart()
         end
 
         ScannerContent.Status.Text = result.Error or "Inventory action failed."
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+    end)
+    indexRewardResult:Connect(function(result)
+        if result.Success then
+            ScannerContent.Status.Text = "Index reward claimed"
+            ScannerContent.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+            return
+        end
+
+        ScannerContent.Status.Text = result.Error or "Index reward failed."
         ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
     end)
     upgradePurchaseResult:Connect(Local.ShowUpgradeResult)

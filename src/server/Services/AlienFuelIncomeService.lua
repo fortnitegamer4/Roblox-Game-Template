@@ -16,8 +16,9 @@ end
 local function getFuelIncomeMultiplier(player: Player): number
     local alienState = Store:getState().players.aliens[getPlayerId(player)]
     local incomeLevel = if alienState then alienState.FuelIncomeLevel else 0
+    local indexBonus = if alienState then alienState.IndexFuelIncomeBonus or 0 else 0
 
-    return 1 + (incomeLevel * AlienConfig.FuelIncomePerLevel)
+    return 1 + (incomeLevel * AlienConfig.FuelIncomePerLevel) + indexBonus
 end
 
 function Shared.GetFuelPerSecond(player: Player): number

@@ -33,9 +33,15 @@ local function SelectPlayerData(playerId: string)
                 EquippedAliens = aliens.EquippedAliens,
                 AlienIndex = aliens.AlienIndex,
                 HasUsedFreeScan = aliens.HasUsedFreeScan,
+                TotalScans = aliens.TotalScans,
+                AutoScanUnlocked = aliens.AutoScanUnlocked,
                 LuckLevel = aliens.LuckLevel,
                 RollSpeedLevel = aliens.RollSpeedLevel,
                 FuelIncomeLevel = aliens.FuelIncomeLevel,
+                ClaimedIndexRewards = aliens.ClaimedIndexRewards,
+                IndexFuelIncomeBonus = aliens.IndexFuelIncomeBonus,
+                IndexLuckBonus = aliens.IndexLuckBonus,
+                IndexRollSpeedBonus = aliens.IndexRollSpeedBonus,
             }
         end
     )

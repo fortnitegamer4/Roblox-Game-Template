@@ -19,6 +19,7 @@ AlienConfig.MaxEquipped = 3
 AlienConfig.MaxAlienInventory = 100
 AlienConfig.ScanCost = 25
 AlienConfig.StarterAlienId = "cosmic_slime"
+AlienConfig.AutoScanUnlockScans = 10
 AlienConfig.BaseScanCooldown = 3
 AlienConfig.RollSpeedCooldownReduction = 0.12
 AlienConfig.MinScanCooldown = 0.75
@@ -27,8 +28,8 @@ AlienConfig.FuelPerPowerPerTick = 1
 AlienConfig.LuckPerLevel = 0.08
 AlienConfig.FuelIncomePerLevel = 0.1
 
-function AlienConfig.GetScanCooldown(rollSpeedLevel: number): number
-    local reductionMultiplier = 1 + (rollSpeedLevel * AlienConfig.RollSpeedCooldownReduction)
+function AlienConfig.GetScanCooldown(rollSpeedLevel: number, bonusRollSpeed: number?): number
+    local reductionMultiplier = 1 + (rollSpeedLevel * AlienConfig.RollSpeedCooldownReduction) + (bonusRollSpeed or 0)
 
     return math.max(AlienConfig.BaseScanCooldown / reductionMultiplier, AlienConfig.MinScanCooldown)
 end
@@ -136,6 +137,60 @@ AlienConfig.Aliens = {
         Variant = "Secret",
     },
 } :: { AlienDefinition }
+
+AlienConfig.IndexRewards = {
+    discover_3 = {
+        DisplayName = "First Contact",
+        RequiredDiscoveries = 3,
+        Description = "+5% Fuel Income",
+        Reward = {
+            FuelIncomeBonus = 0.05,
+        },
+    },
+    discover_5 = {
+        DisplayName = "Lucky Signals",
+        RequiredDiscoveries = 5,
+        Description = "+0.25 Luck",
+        Reward = {
+            LuckBonus = 0.25,
+        },
+    },
+    discover_8 = {
+        DisplayName = "Fast Frequency",
+        RequiredDiscoveries = 8,
+        Description = "+5% Roll Speed",
+        Reward = {
+            RollSpeedBonus = 0.05,
+        },
+    },
+    discover_all_earth = {
+        DisplayName = "Earth Collection",
+        RequiresAllEarth = true,
+        Description = "+10% Fuel Income",
+        Reward = {
+            FuelIncomeBonus = 0.1,
+        },
+    },
+}
+
+AlienConfig.IndexRewardOrder = {
+    "discover_3",
+    "discover_5",
+    "discover_8",
+    "discover_all_earth",
+}
+
+function AlienConfig.GetEarthAlienCount(): number
+    local count = 0
+
+    for _, alien in AlienConfig.Aliens do
+        if alien.Zone == "Earth" then
+            count += 1
+        end
+    end
+
+    return count
+end
 
 local byId = {}
 

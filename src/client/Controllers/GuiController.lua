@@ -94,7 +94,7 @@ function Local.CreateAlienGui()
     scannerContent.Name = "ScannerContent"
     scannerContent.BackgroundTransparency = 1
     scannerContent.Position = UDim2.fromOffset(14, 42)
-    scannerContent.Size = UDim2.fromOffset(292, 196)
+    scannerContent.Size = UDim2.fromOffset(292, 244)
     scannerContent.Parent = frame
 
     local latest = Instance.new("TextLabel")
@@ -159,9 +159,21 @@ function Local.CreateAlienGui()
     status.TextXAlignment = Enum.TextXAlignment.Left
     status.Parent = scannerContent
 
+    local autoScanStatus = Instance.new("TextLabel")
+    autoScanStatus.Name = "AutoScanStatus"
+    autoScanStatus.BackgroundTransparency = 1
+    autoScanStatus.Position = UDim2.fromOffset(0, 144)
+    autoScanStatus.Size = UDim2.fromOffset(292, 20)
+    autoScanStatus.Font = Enum.Font.Gotham
+    autoScanStatus.Text = "Auto Scan Locked"
+    autoScanStatus.TextColor3 = Color3.fromRGB(230, 240, 255)
+    autoScanStatus.TextSize = 13
+    autoScanStatus.TextXAlignment = Enum.TextXAlignment.Left
+    autoScanStatus.Parent = scannerContent
+
     local rollButton = Instance.new("TextButton")
     rollButton.Name = "RollButton"
-    rollButton.Position = UDim2.fromOffset(0, 160)
+    rollButton.Position = UDim2.fromOffset(0, 176)
     rollButton.Size = UDim2.fromOffset(118, 36)
     rollButton.BackgroundColor3 = Color3.fromRGB(49, 132, 255)
     rollButton.BorderSizePixel = 0
@@ -173,7 +185,7 @@ function Local.CreateAlienGui()
 
     local equipBestButton = Instance.new("TextButton")
     equipBestButton.Name = "EquipBestButton"
-    equipBestButton.Position = UDim2.fromOffset(136, 160)
+    equipBestButton.Position = UDim2.fromOffset(136, 176)
     equipBestButton.Size = UDim2.fromOffset(120, 36)
     equipBestButton.BackgroundColor3 = Color3.fromRGB(81, 190, 120)
     equipBestButton.BorderSizePixel = 0
@@ -182,6 +194,18 @@ function Local.CreateAlienGui()
     equipBestButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     equipBestButton.TextSize = 15
     equipBestButton.Parent = scannerContent
+
+    local autoScanButton = Instance.new("TextButton")
+    autoScanButton.Name = "AutoScanButton"
+    autoScanButton.Position = UDim2.fromOffset(0, 218)
+    autoScanButton.Size = UDim2.fromOffset(256, 26)
+    autoScanButton.BackgroundColor3 = Color3.fromRGB(95, 95, 105)
+    autoScanButton.BorderSizePixel = 0
+    autoScanButton.Font = Enum.Font.GothamBold
+    autoScanButton.Text = "Auto Scan: Locked"
+    autoScanButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    autoScanButton.TextSize = 13
+    autoScanButton.Parent = scannerContent
 
     local upgradesHeader = Instance.new("TextButton")
     upgradesHeader.Name = "Upgrades"
@@ -307,6 +331,69 @@ function Local.CreateAlienGui()
     list.ScrollBarThickness = 6
     list.Size = UDim2.fromOffset(292, 190)
     list.Parent = inventory
+
+    local indexHeader = Instance.new("TextButton")
+    indexHeader.Name = "Index"
+    indexHeader.BackgroundTransparency = 1
+    indexHeader.Position = UDim2.fromOffset(14, 700)
+    indexHeader.Size = UDim2.fromOffset(292, 26)
+    indexHeader.Font = Enum.Font.GothamBold
+    indexHeader.Text = "Index"
+    indexHeader.TextColor3 = Color3.fromRGB(180, 235, 255)
+    indexHeader.TextSize = 18
+    indexHeader.TextXAlignment = Enum.TextXAlignment.Left
+    indexHeader.Parent = frame
+
+    local index = Instance.new("Frame")
+    index.Name = "IndexContent"
+    index.BackgroundTransparency = 1
+    index.Position = UDim2.fromOffset(14, 736)
+    index.Size = UDim2.fromOffset(292, 284)
+    index.Parent = frame
+
+    local indexCount = Instance.new("TextLabel")
+    indexCount.Name = "Count"
+    indexCount.BackgroundTransparency = 1
+    indexCount.Position = UDim2.fromOffset(0, 0)
+    indexCount.Size = UDim2.fromOffset(292, 22)
+    indexCount.Font = Enum.Font.GothamMedium
+    indexCount.Text = "Discovered 0/0"
+    indexCount.TextColor3 = Color3.fromRGB(230, 240, 255)
+    indexCount.TextSize = 14
+    indexCount.TextXAlignment = Enum.TextXAlignment.Left
+    indexCount.Parent = index
+
+    local indexList = Instance.new("ScrollingFrame")
+    indexList.Name = "List"
+    indexList.BackgroundTransparency = 1
+    indexList.BorderSizePixel = 0
+    indexList.CanvasSize = UDim2.fromOffset(0, 0)
+    indexList.Position = UDim2.fromOffset(0, 28)
+    indexList.ScrollBarThickness = 6
+    indexList.Size = UDim2.fromOffset(292, 142)
+    indexList.Parent = index
+
+    local rewardsTitle = Instance.new("TextLabel")
+    rewardsTitle.Name = "RewardsTitle"
+    rewardsTitle.BackgroundTransparency = 1
+    rewardsTitle.Position = UDim2.fromOffset(0, 176)
+    rewardsTitle.Size = UDim2.fromOffset(292, 20)
+    rewardsTitle.Font = Enum.Font.GothamBold
+    rewardsTitle.Text = "Rewards"
+    rewardsTitle.TextColor3 = Color3.fromRGB(180, 235, 255)
+    rewardsTitle.TextSize = 14
+    rewardsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    rewardsTitle.Parent = index
+
+    local rewards = Instance.new("ScrollingFrame")
+    rewards.Name = "Rewards"
+    rewards.BackgroundTransparency = 1
+    rewards.BorderSizePixel = 0
+    rewards.CanvasSize = UDim2.fromOffset(0, 0)
+    rewards.Position = UDim2.fromOffset(0, 202)
+    rewards.ScrollBarThickness = 6
+    rewards.Size = UDim2.fromOffset(292, 78)
+    rewards.Parent = index
 
     local scanSound = Instance.new("Sound")
     scanSound.Name = "ScanSound"

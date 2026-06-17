@@ -19,9 +19,15 @@ export type PlayerData = {
     EquippedAliens: { string },
     AlienIndex: AlienIndex,
     HasUsedFreeScan: boolean,
+    TotalScans: number,
+    AutoScanUnlocked: boolean,
     LuckLevel: number,
     RollSpeedLevel: number,
     FuelIncomeLevel: number,
+    ClaimedIndexRewards: { [string]: boolean },
+    IndexFuelIncomeBonus: number,
+    IndexLuckBonus: number,
+    IndexRollSpeedBonus: number,
 }
 
 local PlayerData: PlayerData = {
@@ -30,9 +36,15 @@ local PlayerData: PlayerData = {
     EquippedAliens = {},
     AlienIndex = {},
     HasUsedFreeScan = false,
+    TotalScans = 0,
+    AutoScanUnlocked = false,
     LuckLevel = 0,
     RollSpeedLevel = 0,
     FuelIncomeLevel = 0,
+    ClaimedIndexRewards = {},
+    IndexFuelIncomeBonus = 0,
+    IndexLuckBonus = 0,
+    IndexRollSpeedBonus = 0,
 }
 
 return PlayerData

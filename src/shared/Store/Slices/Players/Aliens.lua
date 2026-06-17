@@ -12,9 +12,15 @@ export type PlayerAlienState = {
     EquippedAliens: { string },
     AlienIndex: PlayerData.AlienIndex,
     HasUsedFreeScan: boolean,
+    TotalScans: number,
+    AutoScanUnlocked: boolean,
     LuckLevel: number,
     RollSpeedLevel: number,
     FuelIncomeLevel: number,
+    ClaimedIndexRewards: { [string]: boolean },
+    IndexFuelIncomeBonus: number,
+    IndexLuckBonus: number,
+    IndexRollSpeedBonus: number,
 }
 
 export type AliensState = {
@@ -27,6 +33,12 @@ export type AliensActions = {
     addAlien: (playerId: string, alien: PlayerData.OwnedAlien) -> (),
     incrementUpgradeLevel: (playerId: string, upgradeId: string) -> (),
     markFreeScanUsed: (playerId: string) -> (),
+    incrementTotalScans: (playerId: string) -> (),
+    setAutoScanUnlocked: (playerId: string, unlocked: boolean) -> (),
+    claimIndexReward: (playerId: string, rewardId: string) -> (),
+    addIndexFuelIncomeBonus: (playerId: string, amount: number) -> (),
+    addIndexLuckBonus: (playerId: string, amount: number) -> (),
+    addIndexRollSpeedBonus: (playerId: string, amount: number) -> (),
     removeAlien: (playerId: string, uid: string) -> (),
     setAlienLocked: (playerId: string, uid: string, locked: boolean) -> (),
     setEquippedAliens: (playerId: string, equippedAliens: { string }) -> (),
@@ -39,9 +51,15 @@ local function getData(data: PlayerData.PlayerData): PlayerAlienState
         EquippedAliens = data.EquippedAliens or {},
         AlienIndex = data.AlienIndex or {},
         HasUsedFreeScan = data.HasUsedFreeScan or false,
+        TotalScans = data.TotalScans or 0,
+        AutoScanUnlocked = data.AutoScanUnlocked or false,
         LuckLevel = data.LuckLevel or 0,
         RollSpeedLevel = data.RollSpeedLevel or 0,
         FuelIncomeLevel = data.FuelIncomeLevel or 0,
+        ClaimedIndexRewards = data.ClaimedIndexRewards or {},
+        IndexFuelIncomeBonus = data.IndexFuelIncomeBonus or 0,
+        IndexLuckBonus = data.IndexLuckBonus or 0,
+        IndexRollSpeedBonus = data.IndexRollSpeedBonus or 0,
     }
 end
 
@@ -92,6 +110,68 @@ local aliensSlice: AliensProducer = Reflex.createProducer({}, {
             end
 
             return Sift.Dictionary.set(playerAliens, "HasUsedFreeScan", true)
+        end)
+    end,
+
+    incrementTotalScans = function(state, playerId: string)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            return Sift.Dictionary.set(playerAliens, "TotalScans", (playerAliens.TotalScans or 0) + 1)
+        end)
+    end,
+
+    setAutoScanUnlocked = function(state, playerId: string, unlocked: boolean)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            return Sift.Dictionary.set(playerAliens, "AutoScanUnlocked", unlocked)
+        end)
+    end,
+
+    claimIndexReward = function(state, playerId: string, rewardId: string)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            local claimedRewards = Sift.Dictionary.set(playerAliens.ClaimedIndexRewards or {}, rewardId, true)
+
+            return Sift.Dictionary.set(playerAliens, "ClaimedIndexRewards", claimedRewards)
+        end)
+    end,
+
+    addIndexFuelIncomeBonus = function(state, playerId: string, amount: number)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            return Sift.Dictionary.set(playerAliens, "IndexFuelIncomeBonus", (playerAliens.IndexFuelIncomeBonus or 0) + amount)
+        end)
+    end,
+
+    addIndexLuckBonus = function(state, playerId: string, amount: number)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            return Sift.Dictionary.set(playerAliens, "IndexLuckBonus", (playerAliens.IndexLuckBonus or 0) + amount)
+        end)
+    end,
+
+    addIndexRollSpeedBonus = function(state, playerId: string, amount: number)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            return Sift.Dictionary.set(playerAliens, "IndexRollSpeedBonus", (playerAliens.IndexRollSpeedBonus or 0) + amount)
         end)
     end,
 
