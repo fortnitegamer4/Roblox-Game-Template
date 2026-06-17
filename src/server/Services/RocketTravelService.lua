@@ -13,6 +13,7 @@ type FlightEntity = {
     Id: string,
     Kind: string,
     X: number,
+    Z: number,
     SpawnedAt: number,
     Speed: number,
 }
@@ -22,7 +23,7 @@ type ActiveLaunch = {
     Hits: number,
     FuelCollected: number,
     Entities: { [string]: FlightEntity },
-    RocketPosition: Vector2,
+    RocketPosition: Vector3,
     LastPositionAt: number,
     CharacterDiedConnection: RBXScriptConnection?,
     Ending: boolean?,
@@ -74,6 +75,7 @@ local function spawnEntity(player: Player, kind: string)
         Id = HttpService:GenerateGUID(false),
         Kind = kind,
         X = Random.new():NextNumber(bounds.MinX + 2, bounds.MaxX - 2),
+        Z = Random.new():NextNumber(bounds.MinZ + 2, bounds.MaxZ - 2),
         SpawnedAt = os.clock(),
         Speed = speed,
     }
@@ -92,7 +94,7 @@ local function spawnEntity(player: Player, kind: string)
     end)
 end
 
-local function getEntityPosition(entity: FlightEntity): Vector2?
+local function getEntityPosition(entity: FlightEntity): Vector3?
     local bounds = RocketTravelConfig.FlightBounds
     local elapsed = os.clock() - entity.SpawnedAt
     local lifetime = (bounds.MaxY - bounds.MinY + RocketTravelConfig.EntitySpawnOffsetY + 7) / entity.Speed
@@ -101,28 +103,49 @@ local function getEntityPosition(entity: FlightEntity): Vector2?
         return nil
     end
 
-    return Vector2.new(entity.X, bounds.MaxY + RocketTravelConfig.EntitySpawnOffsetY - entity.Speed * elapsed)
+    return Vector3.new(
+        entity.X,
+        bounds.MaxY + RocketTravelConfig.EntitySpawnOffsetY - entity.Speed * elapsed,
+        entity.Z
+    )
 end
 
-local function updateRocketPosition(player: Player, x: number, y: number)
+local function updateRocketPosition(player: Player, x: number, y: number, z: number)
     local launch = activeLaunches[player.UserId]
-    if not launch or launch.Ending or typeof(x) ~= "number" or typeof(y) ~= "number" then
+    if not launch
+        or launch.Ending
+        or typeof(x) ~= "number"
+        or typeof(y) ~= "number"
+        or typeof(z) ~= "number"
+    then
         return
     end
 
-    if x ~= x or y ~= y or math.abs(x) == math.huge or math.abs(y) == math.huge then
+    if x ~= x
+        or y ~= y
+        or z ~= z
+        or math.abs(x) == math.huge
+        or math.abs(y) == math.huge
+        or math.abs(z) == math.huge
+    then
         return
     end
 
     local bounds = RocketTravelConfig.FlightBounds
-    if x < bounds.MinX or x > bounds.MaxX or y < bounds.MinY or y > bounds.MaxY then
+    if x < bounds.MinX
+        or x > bounds.MaxX
+        or y < bounds.MinY
+        or y > bounds.MaxY
+        or z < bounds.MinZ
+        or z > bounds.MaxZ
+    then
         return
     end
 
     local now = os.clock()
     local elapsed = math.max(now - launch.LastPositionAt, 0)
-    local maxDistance = RocketTravelConfig.RocketMoveSpeed * elapsed + 2.5
-    local requestedPosition = Vector2.new(x, y)
+    local maxDistance = RocketTravelConfig.MaxMoveSpeed * elapsed + 2.5
+    local requestedPosition = Vector3.new(x, y, z)
 
     if (requestedPosition - launch.RocketPosition).Magnitude > maxDistance then
         return
@@ -181,7 +204,7 @@ function Shared.StartLaunch(player: Player)
         Hits = 0,
         FuelCollected = 0,
         Entities = {},
-        RocketPosition = Vector2.zero,
+        RocketPosition = Vector3.zero,
         LastPositionAt = os.clock(),
     }
     activeLaunches[player.UserId] = launch
@@ -328,11 +351,11 @@ function Shared.OnStart()
         launchStartedRemote:SendToPlayer(player, Shared.StartLaunch(player))
     end)
 
-    requestRocketTravelAction:Connect(function(player: Player, action: string, value1, value2)
+    requestRocketTravelAction:Connect(function(player: Player, action: string, value1, value2, value3)
         if action == "Cancel" then
             Shared.EndLaunch(player, "Cancelled")
         elseif action == "Position" then
-            updateRocketPosition(player, value1, value2)
+            updateRocketPosition(player, value1, value2, value3)
         elseif action == "Contact" and typeof(value1) == "string" then
             handleEntityContact(player, value1)
         end

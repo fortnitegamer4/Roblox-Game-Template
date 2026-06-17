@@ -27,14 +27,20 @@ local Shared = {}
 local active = false
 local returning = false
 local inputDirection = Vector2.zero
-local rocketPosition = Vector2.zero
+local rocketPosition = Vector3.zero
+local rocketVelocity = Vector3.zero
+local rocketRotation = CFrame.identity
 local rocketPart = nil
 local rocketModel = nil
+local cameraFocusPart = nil
 local arenaFolder = nil
 local renderConnection = nil
 local previousCameraType = nil
 local previousCameraSubject = nil
 local previousCameraFieldOfView = nil
+local previousCameraMode = nil
+local previousMinZoomDistance = nil
+local previousMaxZoomDistance = nil
 local previousCharacterState = nil
 local previousGuiEnabled = nil
 local previousLighting = nil
@@ -192,17 +198,6 @@ local function createRocket()
     highlight.Parent = rocketModel
 end
 
-local function createAtmosphereBand(name: string, y: number, color: Color3)
-    return makeVisualPart(
-        arenaFolder,
-        name,
-        Vector3.new(150, 55, 3),
-        color,
-        Enum.Material.SmoothPlastic,
-        CFrame.new(ARENA_ORIGIN + Vector3.new(0, y, -22))
-    )
-end
-
 local function createArena()
     local existing = Workspace:FindFirstChild("RocketTravelArena")
     local staleArena = Workspace:FindFirstChild("RocketTravelArenaClient", true)
@@ -214,23 +209,23 @@ local function createArena()
     arenaFolder.Name = "RocketTravelArenaClient"
     arenaFolder.Parent = existing or Workspace
 
-    createAtmosphereBand("AtmosphereTop", 48, RocketTravelConfig.AtmosphereTopColor)
-    createAtmosphereBand("AtmosphereMiddle", 0, RocketTravelConfig.AtmosphereMiddleColor)
-    createAtmosphereBand("AtmosphereBottom", -48, RocketTravelConfig.AtmosphereBottomColor)
-
-    for _ = 1, 18 do
+    for _ = 1, 28 do
         local cloud = makeVisualPart(
             arenaFolder,
             "Cloud",
-            Vector3.new(Random.new():NextNumber(5, 11), Random.new():NextNumber(1.2, 2.8), 1),
+            Vector3.new(
+                Random.new():NextNumber(5, 11),
+                Random.new():NextNumber(1.2, 2.8),
+                Random.new():NextNumber(2, 5)
+            ),
             Color3.fromRGB(235, 248, 255),
             Enum.Material.SmoothPlastic,
             CFrame.new(
                 ARENA_ORIGIN
                     + Vector3.new(
-                        Random.new():NextNumber(-38, 38),
+                        Random.new():NextNumber(-45, 45),
                         Random.new():NextNumber(-30, 35),
-                        -12
+                        Random.new():NextNumber(-45, 45)
                     )
             )
         )
@@ -239,6 +234,16 @@ local function createArena()
     end
 
     createRocket()
+
+    cameraFocusPart = makeVisualPart(
+        arenaFolder,
+        "CameraFocus",
+        Vector3.one,
+        Color3.new(1, 1, 1),
+        Enum.Material.SmoothPlastic,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(0, RocketTravelConfig.CameraHeight, 0))
+    )
+    cameraFocusPart.Transparency = 1
 end
 
 local function clearArena()
@@ -249,6 +254,7 @@ local function clearArena()
     end
     rocketPart = nil
     rocketModel = nil
+    cameraFocusPart = nil
 end
 
 local function setCameraForFlight(enabled: boolean)
@@ -261,7 +267,15 @@ local function setCameraForFlight(enabled: boolean)
         previousCameraType = camera.CameraType
         previousCameraSubject = camera.CameraSubject
         previousCameraFieldOfView = camera.FieldOfView
-        camera.CameraType = Enum.CameraType.Scriptable
+        previousCameraMode = Player.CameraMode
+        previousMinZoomDistance = Player.CameraMinZoomDistance
+        previousMaxZoomDistance = Player.CameraMaxZoomDistance
+
+        Player.CameraMode = Enum.CameraMode.Classic
+        Player.CameraMinZoomDistance = RocketTravelConfig.CameraDistance * 0.75
+        Player.CameraMaxZoomDistance = RocketTravelConfig.CameraDistance * 1.4
+        camera.CameraSubject = cameraFocusPart
+        camera.CameraType = Enum.CameraType.Custom
         camera.FieldOfView = RocketTravelConfig.CameraFieldOfView
         camera.CFrame = CFrame.lookAt(
             ARENA_ORIGIN
@@ -270,7 +284,7 @@ local function setCameraForFlight(enabled: boolean)
                     RocketTravelConfig.CameraHeight,
                     RocketTravelConfig.CameraDistance
                 ),
-            ARENA_ORIGIN + Vector3.new(0, RocketTravelConfig.CameraLookAheadHeight, 0)
+            cameraFocusPart.Position
         )
     else
         camera.CameraType = previousCameraType or Enum.CameraType.Custom
@@ -280,9 +294,15 @@ local function setCameraForFlight(enabled: boolean)
             then previousCameraSubject
             else currentHumanoid
         camera.FieldOfView = previousCameraFieldOfView or 70
+        Player.CameraMode = previousCameraMode or Enum.CameraMode.Classic
+        Player.CameraMinZoomDistance = previousMinZoomDistance or 0.5
+        Player.CameraMaxZoomDistance = previousMaxZoomDistance or 128
         previousCameraType = nil
         previousCameraSubject = nil
         previousCameraFieldOfView = nil
+        previousCameraMode = nil
+        previousMinZoomDistance = nil
+        previousMaxZoomDistance = nil
     end
 end
 
@@ -292,16 +312,25 @@ local function setLightingForFlight(enabled: boolean)
             Ambient = Lighting.Ambient,
             Brightness = Lighting.Brightness,
             ClockTime = Lighting.ClockTime,
+            FogColor = Lighting.FogColor,
+            FogEnd = Lighting.FogEnd,
+            FogStart = Lighting.FogStart,
             OutdoorAmbient = Lighting.OutdoorAmbient,
         }
         Lighting.Ambient = Color3.fromRGB(115, 145, 180)
         Lighting.OutdoorAmbient = Color3.fromRGB(145, 180, 215)
         Lighting.Brightness = 2.5
         Lighting.ClockTime = 13
+        Lighting.FogColor = RocketTravelConfig.AtmosphereMiddleColor
+        Lighting.FogStart = 120
+        Lighting.FogEnd = 300
     elseif previousLighting then
         Lighting.Ambient = previousLighting.Ambient
         Lighting.Brightness = previousLighting.Brightness
         Lighting.ClockTime = previousLighting.ClockTime
+        Lighting.FogColor = previousLighting.FogColor
+        Lighting.FogEnd = previousLighting.FogEnd
+        Lighting.FogStart = previousLighting.FogStart
         Lighting.OutdoorAmbient = previousLighting.OutdoorAmbient
         previousLighting = nil
     end
@@ -365,7 +394,7 @@ local function spawnVisual(entity)
                 + Vector3.new(
                     entity.X,
                     RocketTravelConfig.FlightBounds.MaxY + RocketTravelConfig.EntitySpawnOffsetY,
-                    0
+                    entity.Z
                 )
         )
     )
@@ -397,27 +426,110 @@ local function spawnVisual(entity)
     }
 end
 
+local function getCameraRelativeMoveDirection(): Vector3
+    local camera = Workspace.CurrentCamera
+    if not camera then
+        return Vector3.zero
+    end
+
+    local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+    local right = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
+
+    if forward.Magnitude < 0.01 then
+        forward = Vector3.new(0, 0, -1)
+    else
+        forward = forward.Unit
+    end
+
+    if right.Magnitude < 0.01 then
+        right = Vector3.new(1, 0, 0)
+    else
+        right = right.Unit
+    end
+
+    local direction = right * inputDirection.X + forward * inputDirection.Y
+
+    return if direction.Magnitude > 1 then direction.Unit else direction
+end
+
+local function moveVelocityToward(current: Vector3, target: Vector3, maxDelta: number): Vector3
+    local delta = target - current
+    if delta.Magnitude <= maxDelta then
+        return target
+    end
+
+    return current + delta.Unit * maxDelta
+end
+
 local function updateFlight(deltaTime: number)
     if not active or not rocketPart then
         return
     end
 
-    local direction = if inputDirection.Magnitude > 1 then inputDirection.Unit else inputDirection
-    rocketPosition += direction * RocketTravelConfig.RocketMoveSpeed * deltaTime
+    local moveDirection = getCameraRelativeMoveDirection()
+
+    if moveDirection.Magnitude > 0 then
+        local targetVelocity = moveDirection.Unit * RocketTravelConfig.MaxMoveSpeed
+        rocketVelocity = moveVelocityToward(
+            rocketVelocity,
+            targetVelocity,
+            RocketTravelConfig.MoveAcceleration * deltaTime
+        )
+    else
+        rocketVelocity *= math.exp(-RocketTravelConfig.Drag * deltaTime)
+        if rocketVelocity.Magnitude < 0.05 then
+            rocketVelocity = Vector3.zero
+        end
+    end
+
+    rocketPosition += rocketVelocity * deltaTime
 
     local bounds = RocketTravelConfig.FlightBounds
-    rocketPosition = Vector2.new(
+    local clampedPosition = Vector3.new(
         math.clamp(rocketPosition.X, bounds.MinX, bounds.MaxX),
-        math.clamp(rocketPosition.Y, bounds.MinY, bounds.MaxY)
+        math.clamp(rocketPosition.Y, bounds.MinY, bounds.MaxY),
+        math.clamp(rocketPosition.Z, bounds.MinZ, bounds.MaxZ)
     )
-    local rocketCFrame = CFrame.new(ARENA_ORIGIN + Vector3.new(rocketPosition.X, rocketPosition.Y, 0))
-        * CFrame.Angles(0, 0, math.rad(-inputDirection.X * 10))
+
+    if clampedPosition.X ~= rocketPosition.X then
+        rocketVelocity = Vector3.new(0, rocketVelocity.Y, rocketVelocity.Z)
+    end
+    if clampedPosition.Y ~= rocketPosition.Y then
+        rocketVelocity = Vector3.new(rocketVelocity.X, 0, rocketVelocity.Z)
+    end
+    if clampedPosition.Z ~= rocketPosition.Z then
+        rocketVelocity = Vector3.new(rocketVelocity.X, rocketVelocity.Y, 0)
+    end
+    rocketPosition = clampedPosition
+
+    local targetRotation = CFrame.identity
+    if moveDirection.Magnitude > 0.01 then
+        local tiltAxis = Vector3.yAxis:Cross(moveDirection)
+        if tiltAxis.Magnitude > 0.01 then
+            targetRotation = CFrame.fromAxisAngle(
+                tiltAxis.Unit,
+                math.rad(RocketTravelConfig.TiltAngleDegrees) * math.min(inputDirection.Magnitude, 1)
+            )
+        end
+    end
+
+    local tiltAlpha = 1 - math.exp(-RocketTravelConfig.TiltSmoothing * deltaTime)
+    rocketRotation = rocketRotation:Lerp(targetRotation, tiltAlpha)
+
+    local rocketWorldPosition = ARENA_ORIGIN + rocketPosition
+    local rocketCFrame = CFrame.new(rocketWorldPosition) * rocketRotation
     rocketModel:PivotTo(rocketCFrame)
+    cameraFocusPart.CFrame = CFrame.new(rocketWorldPosition + Vector3.new(0, RocketTravelConfig.CameraHeight, 0))
 
     positionSendAccumulator += deltaTime
     if positionSendAccumulator >= 0.1 then
         positionSendAccumulator = 0
-        requestRocketTravelAction:SendToServer("Position", rocketPosition.X, rocketPosition.Y)
+        requestRocketTravelAction:SendToServer(
+            "Position",
+            rocketPosition.X,
+            rocketPosition.Y,
+            rocketPosition.Z
+        )
     end
 
     for _, backgroundPart in arenaFolder:GetChildren() do
@@ -446,11 +558,16 @@ local function updateFlight(deltaTime: number)
             then RocketTravelConfig.FuelOrbRadius
             else RocketTravelConfig.AsteroidRadius
         local collisionRadius = RocketTravelConfig.RocketCollisionRadius + entityRadius
-        local distance = (Vector2.new(part.Position.X, part.Position.Y) - Vector2.new(rocketPart.Position.X, rocketPart.Position.Y)).Magnitude
+        local distance = (part.Position - rocketPart.Position).Magnitude
 
         if distance <= collisionRadius and not entity.ContactSent then
             entity.ContactSent = true
-            requestRocketTravelAction:SendToServer("Position", rocketPosition.X, rocketPosition.Y)
+            requestRocketTravelAction:SendToServer(
+                "Position",
+                rocketPosition.X,
+                rocketPosition.Y,
+                rocketPosition.Z
+            )
             requestRocketTravelAction:SendToServer("Contact", entityId)
             part:Destroy()
             entities[entityId] = nil
@@ -460,38 +577,17 @@ local function updateFlight(deltaTime: number)
         end
     end
 
-    local camera = Workspace.CurrentCamera
-    if camera then
-        local followX = rocketPosition.X * 0.35
-        local followY = rocketPosition.Y * 0.25
-        local shake = Vector3.zero
-
-        if cameraShakeRemaining > 0 then
-            cameraShakeRemaining = math.max(cameraShakeRemaining - deltaTime, 0)
-            local strength = cameraShakeRemaining * 1.8
-            shake = Vector3.new(
+    if cameraShakeRemaining > 0 then
+        cameraShakeRemaining = math.max(cameraShakeRemaining - deltaTime, 0)
+        local camera = Workspace.CurrentCamera
+        if camera then
+            local strength = cameraShakeRemaining * 0.75
+            camera.CFrame *= CFrame.new(
                 Random.new():NextNumber(-strength, strength),
                 Random.new():NextNumber(-strength, strength),
                 0
             )
         end
-
-        local cameraPosition = ARENA_ORIGIN
-            + Vector3.new(
-                followX,
-                followY + RocketTravelConfig.CameraHeight,
-                RocketTravelConfig.CameraDistance
-            )
-            + shake
-        local cameraTarget = ARENA_ORIGIN
-            + Vector3.new(
-                followX,
-                followY + RocketTravelConfig.CameraLookAheadHeight,
-                0
-            )
-        local desiredCamera = CFrame.lookAt(cameraPosition, cameraTarget)
-        local alpha = math.min(deltaTime * RocketTravelConfig.CameraFollowStrength, 1)
-        camera.CFrame = camera.CFrame:Lerp(desiredCamera, alpha)
     end
 
     local height = math.floor((os.clock() - startedLocallyAt) * RocketTravelConfig.BaseHeightPerSecond)
@@ -502,7 +598,13 @@ local function beginFlight(result)
     active = true
     returning = false
     startedLocallyAt = os.clock()
-    rocketPosition = Vector2.zero
+    rocketPosition = Vector3.zero
+    rocketVelocity = Vector3.zero
+    rocketRotation = CFrame.identity
+    heldDirections.Up = false
+    heldDirections.Down = false
+    heldDirections.Left = false
+    heldDirections.Right = false
     runFuel = 0
     hitsRemaining = result.MaxHits or RocketTravelConfig.MaxHitsBeforeCrash
     positionSendAccumulator = 0
