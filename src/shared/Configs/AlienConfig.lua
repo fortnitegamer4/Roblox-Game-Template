@@ -17,6 +17,7 @@ local AlienConfig = {}
 
 AlienConfig.MaxEquipped = 3
 AlienConfig.ScanCost = 25
+AlienConfig.StarterAlienId = "cosmic_slime"
 AlienConfig.BaseScanCooldown = 3
 AlienConfig.RollSpeedCooldownReduction = 0.12
 AlienConfig.MinScanCooldown = 0.75

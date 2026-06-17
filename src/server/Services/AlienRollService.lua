@@ -89,8 +89,8 @@ function Shared.RollAlien(player: Player)
         }
     end
 
-    local isFreeScan = not alienState.HasUsedFreeScan
-    local scanCost = if isFreeScan then 0 else AlienConfig.ScanCost
+    local isStarterScan = not alienState.HasUsedFreeScan
+    local scanCost = AlienConfig.ScanCost
 
     if scanCost > 0 and not FuelService.CanAfford(player, scanCost) then
         return {
@@ -98,7 +98,7 @@ function Shared.RollAlien(player: Player)
             Error = `Not enough Fuel. Need {scanCost}.`,
             Reason = "NotEnoughFuel",
             Cost = scanCost,
-            IsFreeScan = false,
+            IsStarterScan = isStarterScan,
             Fuel = FuelService.GetFuel(player) or 0,
         }
     end
@@ -109,14 +109,15 @@ function Shared.RollAlien(player: Player)
             Error = "Unable to spend Fuel right now.",
             Reason = "FuelSpendFailed",
             Cost = scanCost,
-            IsFreeScan = false,
+            IsStarterScan = isStarterScan,
         }
     end
 
     local cooldown = getCooldown(alienState)
     nextScanTimes[player.UserId] = os.clock() + cooldown
 
-    local definition = chooseAlien(player)
+    local definition = if isStarterScan then AlienConfig.ById[AlienConfig.StarterAlienId] else chooseAlien(player)
+    definition = definition or chooseAlien(player)
     local ownedAlien = {
         UID = HttpService:GenerateGUID(false),
         AlienId = definition.AlienId,
@@ -132,7 +133,7 @@ function Shared.RollAlien(player: Player)
         Definition = definition,
         Cost = scanCost,
         Cooldown = cooldown,
-        IsFreeScan = isFreeScan,
+        IsStarterScan = isStarterScan,
     }
 end
 

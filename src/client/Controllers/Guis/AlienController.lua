@@ -132,11 +132,7 @@ function Local.UpdateScanState()
     Frame.RollButton.AutoButtonColor = true
     Frame.RollButton.Text = "Scan"
 
-    if currentAlienState and not currentAlienState.HasUsedFreeScan then
-        Frame.ScanCost.Text = "First Scan Free"
-        Frame.Status.Text = "Scanner Ready"
-        Frame.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
-    elseif currentFuel < AlienConfig.ScanCost then
+    if currentFuel < AlienConfig.ScanCost then
         Frame.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
         Frame.Status.Text = `Need {AlienConfig.ScanCost} Fuel to scan`
         Frame.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
