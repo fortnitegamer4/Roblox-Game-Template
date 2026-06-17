@@ -1,4 +1,5 @@
 local ContextActionService = game:GetService("ContextActionService")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -19,7 +20,6 @@ local Content = Frame.Content
 
 local ACTION_NAME = "RocketTravelMovement"
 local ARENA_ORIGIN = Vector3.new(0, 80, 600)
-local CAMERA_OFFSET = Vector3.new(0, 0, 55)
 
 local Local = {}
 local Shared = {}
@@ -29,18 +29,28 @@ local returning = false
 local inputDirection = Vector2.zero
 local rocketPosition = Vector2.zero
 local rocketPart = nil
+local rocketModel = nil
 local arenaFolder = nil
 local renderConnection = nil
 local previousCameraType = nil
 local previousCameraSubject = nil
+local previousCameraFieldOfView = nil
 local previousCharacterState = nil
 local previousGuiEnabled = nil
+local previousLighting = nil
 local startedLocallyAt = 0
 local runFuel = 0
 local hitsRemaining = RocketTravelConfig.MaxHitsBeforeCrash
 local entities = {}
 local requestRocketTravelAction = nil
 local positionSendAccumulator = 0
+local cameraShakeRemaining = 0
+local heldDirections = {
+    Up = false,
+    Down = false,
+    Left = false,
+    Right = false,
+}
 
 local function setStatus(text: string, color: Color3?)
     Content.Status.Text = text
@@ -69,59 +79,166 @@ local function setCharacterFlightState(enabled: boolean)
     end
 end
 
+local function makeVisualPart(parent: Instance, name: string, size: Vector3, color: Color3, material: Enum.Material, cframe: CFrame)
+    local part = Instance.new("Part")
+    part.Name = name
+    part.Anchored = true
+    part.CanCollide = false
+    part.CanQuery = false
+    part.CanTouch = false
+    part.Size = size
+    part.Color = color
+    part.Material = material
+    part.CFrame = cframe
+    part.Parent = parent
+
+    return part
+end
+
+local function createRocket()
+    rocketModel = Instance.new("Model")
+    rocketModel.Name = "Rocket"
+    rocketModel.Parent = arenaFolder
+
+    rocketPart = makeVisualPart(
+        rocketModel,
+        "Body",
+        Vector3.new(3.2, 6.2, 2.8),
+        Color3.fromRGB(244, 248, 255),
+        Enum.Material.Metal,
+        CFrame.new(ARENA_ORIGIN)
+    )
+    rocketModel.PrimaryPart = rocketPart
+
+    local nose = makeVisualPart(
+        rocketModel,
+        "Nose",
+        Vector3.new(2.8, 2.8, 2.5),
+        Color3.fromRGB(255, 78, 64),
+        Enum.Material.SmoothPlastic,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(0, 3.7, 0))
+    )
+    nose.Shape = Enum.PartType.Ball
+
+    local window = makeVisualPart(
+        rocketModel,
+        "Window",
+        Vector3.new(1.5, 1.5, 0.35),
+        Color3.fromRGB(76, 210, 255),
+        Enum.Material.Neon,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(0, 1, 1.55))
+    )
+    window.Shape = Enum.PartType.Ball
+
+    makeVisualPart(
+        rocketModel,
+        "LeftFin",
+        Vector3.new(1.5, 2.8, 1),
+        Color3.fromRGB(255, 78, 64),
+        Enum.Material.SmoothPlastic,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(-2, -2, 0))
+    )
+    makeVisualPart(
+        rocketModel,
+        "RightFin",
+        Vector3.new(1.5, 2.8, 1),
+        Color3.fromRGB(255, 78, 64),
+        Enum.Material.SmoothPlastic,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(2, -2, 0))
+    )
+
+    local flame = makeVisualPart(
+        rocketModel,
+        "Flame",
+        Vector3.new(1.5, 3.2, 1.5),
+        Color3.fromRGB(255, 154, 45),
+        Enum.Material.Neon,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(0, -4.7, 0))
+    )
+
+    local flameAttachment = Instance.new("Attachment")
+    flameAttachment.Parent = flame
+
+    local flameEmitter = Instance.new("ParticleEmitter")
+    flameEmitter.Name = "FlameEmitter"
+    flameEmitter.Color = ColorSequence.new(Color3.fromRGB(255, 245, 125), Color3.fromRGB(255, 85, 20))
+    flameEmitter.LightEmission = 1
+    flameEmitter.Lifetime = NumberRange.new(0.25, 0.45)
+    flameEmitter.Rate = 45
+    flameEmitter.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1.2),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    flameEmitter.Speed = NumberRange.new(5, 8)
+    flameEmitter.SpreadAngle = Vector2.new(12, 12)
+    flameEmitter.Parent = flameAttachment
+
+    local sparks = Instance.new("ParticleEmitter")
+    sparks.Name = "HitSparks"
+    sparks.Enabled = false
+    sparks.Color = ColorSequence.new(Color3.fromRGB(255, 235, 120), Color3.fromRGB(255, 70, 35))
+    sparks.LightEmission = 1
+    sparks.Lifetime = NumberRange.new(0.2, 0.45)
+    sparks.Rate = 0
+    sparks.Size = NumberSequence.new(0.25)
+    sparks.Speed = NumberRange.new(8, 14)
+    sparks.SpreadAngle = Vector2.new(180, 180)
+    sparks.Parent = rocketPart
+
+    local highlight = Instance.new("Highlight")
+    highlight.FillTransparency = 0.78
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0.05
+    highlight.Parent = rocketModel
+end
+
+local function createAtmosphereBand(name: string, y: number, color: Color3)
+    return makeVisualPart(
+        arenaFolder,
+        name,
+        Vector3.new(150, 55, 3),
+        color,
+        Enum.Material.SmoothPlastic,
+        CFrame.new(ARENA_ORIGIN + Vector3.new(0, y, -22))
+    )
+end
+
 local function createArena()
     local existing = Workspace:FindFirstChild("RocketTravelArena")
+    local staleArena = Workspace:FindFirstChild("RocketTravelArenaClient", true)
+    if staleArena then
+        staleArena:Destroy()
+    end
+
     arenaFolder = Instance.new("Folder")
     arenaFolder.Name = "RocketTravelArenaClient"
     arenaFolder.Parent = existing or Workspace
 
-    local backdrop = Instance.new("Part")
-    backdrop.Name = "Backdrop"
-    backdrop.Anchored = true
-    backdrop.CanCollide = false
-    backdrop.Color = Color3.fromRGB(12, 22, 48)
-    backdrop.Material = Enum.Material.SmoothPlastic
-    backdrop.Size = Vector3.new(46, 32, 2)
-    backdrop.CFrame = CFrame.new(ARENA_ORIGIN + Vector3.new(0, 0, 5))
-    backdrop.Parent = arenaFolder
+    createAtmosphereBand("AtmosphereTop", 48, RocketTravelConfig.AtmosphereTopColor)
+    createAtmosphereBand("AtmosphereMiddle", 0, RocketTravelConfig.AtmosphereMiddleColor)
+    createAtmosphereBand("AtmosphereBottom", -48, RocketTravelConfig.AtmosphereBottomColor)
 
-    for _ = 1, 24 do
-        local star = Instance.new("Part")
-        star.Name = "Star"
-        star.Shape = Enum.PartType.Ball
-        star.Anchored = true
-        star.CanCollide = false
-        star.Material = Enum.Material.Neon
-        star.Color = Color3.fromRGB(210, 235, 255)
-        star.Size = Vector3.one * Random.new():NextNumber(0.15, 0.45)
-        star.Position = ARENA_ORIGIN
-            + Vector3.new(
-                Random.new():NextNumber(RocketTravelConfig.FlightBounds.MinX, RocketTravelConfig.FlightBounds.MaxX),
-                Random.new():NextNumber(RocketTravelConfig.FlightBounds.MinY, RocketTravelConfig.FlightBounds.MaxY),
-                2
+    for _ = 1, 18 do
+        local cloud = makeVisualPart(
+            arenaFolder,
+            "Cloud",
+            Vector3.new(Random.new():NextNumber(5, 11), Random.new():NextNumber(1.2, 2.8), 1),
+            Color3.fromRGB(235, 248, 255),
+            Enum.Material.SmoothPlastic,
+            CFrame.new(
+                ARENA_ORIGIN
+                    + Vector3.new(
+                        Random.new():NextNumber(-38, 38),
+                        Random.new():NextNumber(-30, 35),
+                        -12
+                    )
             )
-        star.Parent = arenaFolder
+        )
+        cloud.Shape = Enum.PartType.Ball
+        cloud.Transparency = Random.new():NextNumber(0.2, 0.55)
     end
 
-    rocketPart = Instance.new("Part")
-    rocketPart.Name = "Rocket"
-    rocketPart.Anchored = true
-    rocketPart.CanCollide = false
-    rocketPart.Color = Color3.fromRGB(235, 240, 250)
-    rocketPart.Material = Enum.Material.Metal
-    rocketPart.Size = Vector3.new(2.4, 5.5, 2)
-    rocketPart.CFrame = CFrame.new(ARENA_ORIGIN)
-    rocketPart.Parent = arenaFolder
-
-    local flame = Instance.new("Part")
-    flame.Name = "Flame"
-    flame.Anchored = true
-    flame.CanCollide = false
-    flame.Color = Color3.fromRGB(255, 150, 45)
-    flame.Material = Enum.Material.Neon
-    flame.Size = Vector3.new(1.2, 2.2, 1.2)
-    flame.CFrame = rocketPart.CFrame * CFrame.new(0, -3.6, 0)
-    flame.Parent = arenaFolder
+    createRocket()
 end
 
 local function clearArena()
@@ -131,6 +248,7 @@ local function clearArena()
         arenaFolder = nil
     end
     rocketPart = nil
+    rocketModel = nil
 end
 
 local function setCameraForFlight(enabled: boolean)
@@ -142,8 +260,18 @@ local function setCameraForFlight(enabled: boolean)
     if enabled then
         previousCameraType = camera.CameraType
         previousCameraSubject = camera.CameraSubject
+        previousCameraFieldOfView = camera.FieldOfView
         camera.CameraType = Enum.CameraType.Scriptable
-        camera.CFrame = CFrame.lookAt(ARENA_ORIGIN + CAMERA_OFFSET, ARENA_ORIGIN)
+        camera.FieldOfView = RocketTravelConfig.CameraFieldOfView
+        camera.CFrame = CFrame.lookAt(
+            ARENA_ORIGIN
+                + Vector3.new(
+                    0,
+                    RocketTravelConfig.CameraHeight,
+                    RocketTravelConfig.CameraDistance
+                ),
+            ARENA_ORIGIN + Vector3.new(0, RocketTravelConfig.CameraLookAheadHeight, 0)
+        )
     else
         camera.CameraType = previousCameraType or Enum.CameraType.Custom
         local character = Player.Character
@@ -151,8 +279,31 @@ local function setCameraForFlight(enabled: boolean)
         camera.CameraSubject = if previousCameraSubject and previousCameraSubject.Parent
             then previousCameraSubject
             else currentHumanoid
+        camera.FieldOfView = previousCameraFieldOfView or 70
         previousCameraType = nil
         previousCameraSubject = nil
+        previousCameraFieldOfView = nil
+    end
+end
+
+local function setLightingForFlight(enabled: boolean)
+    if enabled then
+        previousLighting = {
+            Ambient = Lighting.Ambient,
+            Brightness = Lighting.Brightness,
+            ClockTime = Lighting.ClockTime,
+            OutdoorAmbient = Lighting.OutdoorAmbient,
+        }
+        Lighting.Ambient = Color3.fromRGB(115, 145, 180)
+        Lighting.OutdoorAmbient = Color3.fromRGB(145, 180, 215)
+        Lighting.Brightness = 2.5
+        Lighting.ClockTime = 13
+    elseif previousLighting then
+        Lighting.Ambient = previousLighting.Ambient
+        Lighting.Brightness = previousLighting.Brightness
+        Lighting.ClockTime = previousLighting.ClockTime
+        Lighting.OutdoorAmbient = previousLighting.OutdoorAmbient
+        previousLighting = nil
     end
 end
 
@@ -175,18 +326,23 @@ local function setOtherGuisVisible(visible: boolean)
 end
 
 local function movementAction(_, inputState: Enum.UserInputState, inputObject: InputObject)
-    local value = if inputState == Enum.UserInputState.Begin or inputState == Enum.UserInputState.Change then 1 else 0
+    local pressed = inputState == Enum.UserInputState.Begin or inputState == Enum.UserInputState.Change
     local keyCode = inputObject.KeyCode
 
     if keyCode == Enum.KeyCode.W or keyCode == Enum.KeyCode.Up then
-        inputDirection = Vector2.new(inputDirection.X, value)
+        heldDirections.Up = pressed
     elseif keyCode == Enum.KeyCode.S or keyCode == Enum.KeyCode.Down then
-        inputDirection = Vector2.new(inputDirection.X, -value)
+        heldDirections.Down = pressed
     elseif keyCode == Enum.KeyCode.A or keyCode == Enum.KeyCode.Left then
-        inputDirection = Vector2.new(-value, inputDirection.Y)
+        heldDirections.Left = pressed
     elseif keyCode == Enum.KeyCode.D or keyCode == Enum.KeyCode.Right then
-        inputDirection = Vector2.new(value, inputDirection.Y)
+        heldDirections.Right = pressed
     end
+
+    inputDirection = Vector2.new(
+        (if heldDirections.Right then 1 else 0) - (if heldDirections.Left then 1 else 0),
+        (if heldDirections.Up then 1 else 0) - (if heldDirections.Down then 1 else 0)
+    )
 
     return Enum.ContextActionResult.Sink
 end
@@ -196,23 +352,48 @@ local function spawnVisual(entity)
         return
     end
 
-    local part = Instance.new("Part")
-    part.Name = entity.Kind
-    part.Shape = Enum.PartType.Ball
-    part.Anchored = true
-    part.CanCollide = false
-    part.Material = if entity.Kind == "FuelOrb" then Enum.Material.Neon else Enum.Material.Slate
-    part.Color = if entity.Kind == "FuelOrb" then Color3.fromRGB(80, 255, 145) else Color3.fromRGB(105, 92, 100)
-    local diameter = if entity.Kind == "FuelOrb" then RocketTravelConfig.FuelOrbRadius * 2 else RocketTravelConfig.AsteroidRadius * 2
-    part.Size = Vector3.one * diameter
-    part.Position = ARENA_ORIGIN + Vector3.new(entity.X, RocketTravelConfig.FlightBounds.MaxY + 5, 0)
-    part.Parent = arenaFolder
+    local isFuelOrb = entity.Kind == "FuelOrb"
+    local radius = if isFuelOrb then RocketTravelConfig.FuelOrbRadius else RocketTravelConfig.AsteroidRadius
+    local part = makeVisualPart(
+        arenaFolder,
+        entity.Kind,
+        Vector3.one * radius * 2,
+        if isFuelOrb then Color3.fromRGB(60, 255, 160) else Color3.fromRGB(181, 104, 55),
+        if isFuelOrb then Enum.Material.Neon else Enum.Material.Slate,
+        CFrame.new(
+            ARENA_ORIGIN
+                + Vector3.new(
+                    entity.X,
+                    RocketTravelConfig.FlightBounds.MaxY + RocketTravelConfig.EntitySpawnOffsetY,
+                    0
+                )
+        )
+    )
+    part.Shape = if isFuelOrb then Enum.PartType.Ball else Enum.PartType.Block
+
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = if isFuelOrb then Color3.fromRGB(105, 255, 190) else Color3.fromRGB(255, 166, 75)
+    highlight.FillTransparency = if isFuelOrb then 0.45 else 0.72
+    highlight.OutlineColor = if isFuelOrb then Color3.fromRGB(220, 255, 235) else Color3.fromRGB(255, 210, 125)
+    highlight.OutlineTransparency = 0.05
+    highlight.Parent = part
+
+    local light = Instance.new("PointLight")
+    light.Color = highlight.OutlineColor
+    light.Brightness = if isFuelOrb then 2.5 else 1.2
+    light.Range = if isFuelOrb then 12 else 8
+    light.Parent = part
 
     entities[entity.Id] = {
         Part = part,
         Kind = entity.Kind,
         Speed = entity.Speed,
         ContactSent = false,
+        Rotation = Vector3.new(
+            Random.new():NextNumber(-2.2, 2.2),
+            Random.new():NextNumber(-2.2, 2.2),
+            Random.new():NextNumber(-2.2, 2.2)
+        ),
     }
 end
 
@@ -229,7 +410,9 @@ local function updateFlight(deltaTime: number)
         math.clamp(rocketPosition.X, bounds.MinX, bounds.MaxX),
         math.clamp(rocketPosition.Y, bounds.MinY, bounds.MaxY)
     )
-    rocketPart.CFrame = CFrame.new(ARENA_ORIGIN + Vector3.new(rocketPosition.X, rocketPosition.Y, 0))
+    local rocketCFrame = CFrame.new(ARENA_ORIGIN + Vector3.new(rocketPosition.X, rocketPosition.Y, 0))
+        * CFrame.Angles(0, 0, math.rad(-inputDirection.X * 10))
+    rocketModel:PivotTo(rocketCFrame)
 
     positionSendAccumulator += deltaTime
     if positionSendAccumulator >= 0.1 then
@@ -237,16 +420,11 @@ local function updateFlight(deltaTime: number)
         requestRocketTravelAction:SendToServer("Position", rocketPosition.X, rocketPosition.Y)
     end
 
-    local flame = arenaFolder and arenaFolder:FindFirstChild("Flame")
-    if flame then
-        flame.CFrame = rocketPart.CFrame * CFrame.new(0, -3.6, 0)
-    end
-
-    for _, star in arenaFolder:GetChildren() do
-        if star.Name == "Star" then
-            star.Position -= Vector3.new(0, 10 * deltaTime, 0)
-            if star.Position.Y < ARENA_ORIGIN.Y + bounds.MinY then
-                star.Position += Vector3.new(0, bounds.MaxY - bounds.MinY, 0)
+    for _, backgroundPart in arenaFolder:GetChildren() do
+        if backgroundPart.Name == "Cloud" then
+            backgroundPart.Position -= Vector3.new(0, 8 * deltaTime, 0)
+            if backgroundPart.Position.Y < ARENA_ORIGIN.Y - 32 then
+                backgroundPart.Position += Vector3.new(0, 67, 0)
             end
         end
     end
@@ -258,7 +436,11 @@ local function updateFlight(deltaTime: number)
             continue
         end
 
-        part.Position -= Vector3.new(0, entity.Speed * deltaTime, 0)
+        local rotation = entity.Rotation * deltaTime
+        local nextPosition = part.Position - Vector3.new(0, entity.Speed * deltaTime, 0)
+        part.CFrame = CFrame.new(nextPosition)
+            * part.CFrame.Rotation
+            * CFrame.Angles(rotation.X, rotation.Y, rotation.Z)
 
         local entityRadius = if entity.Kind == "FuelOrb"
             then RocketTravelConfig.FuelOrbRadius
@@ -278,6 +460,40 @@ local function updateFlight(deltaTime: number)
         end
     end
 
+    local camera = Workspace.CurrentCamera
+    if camera then
+        local followX = rocketPosition.X * 0.35
+        local followY = rocketPosition.Y * 0.25
+        local shake = Vector3.zero
+
+        if cameraShakeRemaining > 0 then
+            cameraShakeRemaining = math.max(cameraShakeRemaining - deltaTime, 0)
+            local strength = cameraShakeRemaining * 1.8
+            shake = Vector3.new(
+                Random.new():NextNumber(-strength, strength),
+                Random.new():NextNumber(-strength, strength),
+                0
+            )
+        end
+
+        local cameraPosition = ARENA_ORIGIN
+            + Vector3.new(
+                followX,
+                followY + RocketTravelConfig.CameraHeight,
+                RocketTravelConfig.CameraDistance
+            )
+            + shake
+        local cameraTarget = ARENA_ORIGIN
+            + Vector3.new(
+                followX,
+                followY + RocketTravelConfig.CameraLookAheadHeight,
+                0
+            )
+        local desiredCamera = CFrame.lookAt(cameraPosition, cameraTarget)
+        local alpha = math.min(deltaTime * RocketTravelConfig.CameraFollowStrength, 1)
+        camera.CFrame = camera.CFrame:Lerp(desiredCamera, alpha)
+    end
+
     local height = math.floor((os.clock() - startedLocallyAt) * RocketTravelConfig.BaseHeightPerSecond)
     Content.Height.Text = `Height: {height}m`
 end
@@ -294,6 +510,7 @@ local function beginFlight(result)
     createArena()
     setCharacterFlightState(true)
     setCameraForFlight(true)
+    setLightingForFlight(true)
     setOtherGuisVisible(false)
 
     ContextActionService:BindAction(
@@ -324,6 +541,7 @@ local function finishFlight(result)
     returning = true
     ContextActionService:UnbindAction(ACTION_NAME)
     inputDirection = Vector2.zero
+    table.clear(heldDirections)
 
     if renderConnection then
         renderConnection:Disconnect()
@@ -343,6 +561,7 @@ local function finishFlight(result)
 
     task.delay(RocketTravelConfig.EndRunReturnDelay, function()
         setCameraForFlight(false)
+        setLightingForFlight(false)
         setCharacterFlightState(false)
         setOtherGuisVisible(true)
         clearArena()
@@ -409,12 +628,21 @@ function Shared.OnStart()
         elseif update.Kind == "Hit" then
             hitsRemaining = update.HitsRemaining or hitsRemaining
             Content.Hits.Text = `Hits remaining: {hitsRemaining}`
-            TweenService:Create(Content, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {
-                BackgroundColor3 = Color3.fromRGB(110, 35, 40),
+            cameraShakeRemaining = 0.35
+
+            local sparks = rocketPart and rocketPart:FindFirstChild("HitSparks")
+            if sparks and sparks:IsA("ParticleEmitter") then
+                sparks:Emit(28)
+            end
+
+            Gui.HitFlash.BackgroundTransparency = 0.45
+            TweenService:Create(Gui.HitFlash, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+                BackgroundTransparency = 1,
             }):Play()
         elseif update.Kind == "Collected" then
             runFuel = update.FuelCollected or runFuel
             Content.RunFuel.Text = `Fuel collected: {runFuel}`
+            setStatus("+ Fuel collected", Color3.fromRGB(120, 255, 175))
         end
     end)
 

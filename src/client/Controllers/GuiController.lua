@@ -409,6 +409,7 @@ function Local.CreateRocketTravelGui()
     local gui = Instance.new("ScreenGui")
     gui.Name = "RocketTravel"
     gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
 
     local frame = Instance.new("Frame")
     frame.Name = "Frame"
@@ -475,6 +476,15 @@ function Local.CreateRocketTravelGui()
     launchButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     launchButton.TextSize = 15
     launchButton.Parent = content
+
+    local hitFlash = Instance.new("Frame")
+    hitFlash.Name = "HitFlash"
+    hitFlash.Size = UDim2.fromScale(1, 1)
+    hitFlash.BackgroundColor3 = Color3.fromRGB(255, 45, 45)
+    hitFlash.BackgroundTransparency = 1
+    hitFlash.BorderSizePixel = 0
+    hitFlash.ZIndex = 100
+    hitFlash.Parent = gui
 
     gui.Parent = PlayerGui
 

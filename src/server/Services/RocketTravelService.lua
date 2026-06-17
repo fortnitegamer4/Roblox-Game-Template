@@ -84,7 +84,7 @@ local function spawnEntity(player: Player, kind: string)
         Entity = entity,
     })
 
-    task.delay((bounds.MaxY - bounds.MinY + 12) / speed, function()
+    task.delay((bounds.MaxY - bounds.MinY + RocketTravelConfig.EntitySpawnOffsetY + 7) / speed, function()
         local currentLaunch = activeLaunches[player.UserId]
         if currentLaunch then
             currentLaunch.Entities[entity.Id] = nil
@@ -95,13 +95,13 @@ end
 local function getEntityPosition(entity: FlightEntity): Vector2?
     local bounds = RocketTravelConfig.FlightBounds
     local elapsed = os.clock() - entity.SpawnedAt
-    local lifetime = (bounds.MaxY - bounds.MinY + 12) / entity.Speed
+    local lifetime = (bounds.MaxY - bounds.MinY + RocketTravelConfig.EntitySpawnOffsetY + 7) / entity.Speed
 
     if elapsed < 0 or elapsed > lifetime then
         return nil
     end
 
-    return Vector2.new(entity.X, bounds.MaxY + 5 - entity.Speed * elapsed)
+    return Vector2.new(entity.X, bounds.MaxY + RocketTravelConfig.EntitySpawnOffsetY - entity.Speed * elapsed)
 end
 
 local function updateRocketPosition(player: Player, x: number, y: number)
