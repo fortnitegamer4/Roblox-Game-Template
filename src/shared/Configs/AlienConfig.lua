@@ -16,6 +16,7 @@ export type AlienDefinition = {
 local AlienConfig = {}
 
 AlienConfig.MaxEquipped = 3
+AlienConfig.MaxAlienInventory = 100
 AlienConfig.ScanCost = 25
 AlienConfig.StarterAlienId = "cosmic_slime"
 AlienConfig.BaseScanCooldown = 3

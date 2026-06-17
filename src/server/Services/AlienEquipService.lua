@@ -14,22 +14,35 @@ local function getAlienState(player: Player)
     return Store:getState().players.aliens[getPlayerId(player)]
 end
 
-local function ownsAlien(player: Player, uid: string): boolean
-    local alienState = getAlienState(player)
-    return alienState ~= nil and alienState.AlienInventory[uid] ~= nil
+local function makeResult(success: boolean, reason: string?, errorMessage: string?, uid: string?)
+    return {
+        Success = success,
+        Reason = reason,
+        Error = errorMessage,
+        UID = uid,
+    }
 end
 
-function Shared.EquipAlien(player: Player, uid: string): boolean
-    if typeof(uid) ~= "string" or not ownsAlien(player, uid) then
-        return false
+local function getOwnedAlien(player: Player, uid: string)
+    local alienState = getAlienState(player)
+
+    if not alienState or typeof(uid) ~= "string" then
+        return nil, alienState
     end
 
-    local playerId = getPlayerId(player)
-    local alienState = getAlienState(player)
+    return alienState.AlienInventory[uid], alienState
+end
+
+function Shared.EquipAlien(player: Player, uid: string)
+    local ownedAlien, alienState = getOwnedAlien(player, uid)
+    if not ownedAlien then
+        return makeResult(false, "NotOwned", "You do not own that alien.", uid)
+    end
+
     local equipped = table.clone(alienState.EquippedAliens)
 
     if table.find(equipped, uid) then
-        return true
+        return makeResult(true, nil, nil, uid)
     end
 
     if #equipped >= AlienConfig.MaxEquipped then
@@ -37,15 +50,15 @@ function Shared.EquipAlien(player: Player, uid: string): boolean
     end
 
     table.insert(equipped, uid)
-    Store.setEquippedAliens(playerId, equipped)
+    Store.setEquippedAliens(getPlayerId(player), equipped)
 
-    return true
+    return makeResult(true, nil, nil, uid)
 end
 
-function Shared.UnequipAlien(player: Player, uid: string): boolean
-    local alienState = getAlienState(player)
-    if typeof(uid) ~= "string" or not alienState then
-        return false
+function Shared.UnequipAlien(player: Player, uid: string)
+    local ownedAlien, alienState = getOwnedAlien(player, uid)
+    if not ownedAlien then
+        return makeResult(false, "NotOwned", "You do not own that alien.", uid)
     end
 
     local equipped = {}
@@ -58,13 +71,13 @@ function Shared.UnequipAlien(player: Player, uid: string): boolean
 
     Store.setEquippedAliens(getPlayerId(player), equipped)
 
-    return true
+    return makeResult(true, nil, nil, uid)
 end
 
-function Shared.EquipBest(player: Player): boolean
+function Shared.EquipBest(player: Player)
     local alienState = getAlienState(player)
     if not alienState then
-        return false
+        return makeResult(false, "DataNotLoaded", "Player data is still loading.")
     end
 
     local ownedAliens = {}
@@ -72,7 +85,7 @@ function Shared.EquipBest(player: Player): boolean
     for uid, ownedAlien in alienState.AlienInventory do
         local definition = AlienConfig.ById[ownedAlien.AlienId]
 
-        if definition then
+        if definition and not ownedAlien.Locked then
             table.insert(ownedAliens, {
                 UID = uid,
                 Power = definition.Power,
@@ -97,7 +110,48 @@ function Shared.EquipBest(player: Player): boolean
 
     Store.setEquippedAliens(getPlayerId(player), equipped)
 
-    return true
+    return makeResult(true)
+end
+
+function Shared.LockAlien(player: Player, uid: string)
+    local ownedAlien = getOwnedAlien(player, uid)
+    if not ownedAlien then
+        return makeResult(false, "NotOwned", "You do not own that alien.", uid)
+    end
+
+    Store.setAlienLocked(getPlayerId(player), uid, true)
+
+    return makeResult(true, nil, nil, uid)
+end
+
+function Shared.UnlockAlien(player: Player, uid: string)
+    local ownedAlien = getOwnedAlien(player, uid)
+    if not ownedAlien then
+        return makeResult(false, "NotOwned", "You do not own that alien.", uid)
+    end
+
+    Store.setAlienLocked(getPlayerId(player), uid, false)
+
+    return makeResult(true, nil, nil, uid)
+end
+
+function Shared.DeleteAlien(player: Player, uid: string)
+    local ownedAlien, alienState = getOwnedAlien(player, uid)
+    if not ownedAlien then
+        return makeResult(false, "NotOwned", "You do not own that alien.", uid)
+    end
+
+    if ownedAlien.Locked then
+        return makeResult(false, "Locked", "Unlock this alien before deleting it.", uid)
+    end
+
+    if table.find(alienState.EquippedAliens, uid) then
+        Shared.UnequipAlien(player, uid)
+    end
+
+    Store.removeAlien(getPlayerId(player), uid)
+
+    return makeResult(true, nil, nil, uid)
 end
 
 function Shared.GetCrewPower(player: Player): number

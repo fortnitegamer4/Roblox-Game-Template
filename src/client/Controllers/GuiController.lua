@@ -254,6 +254,60 @@ function Local.CreateAlienGui()
         buy.Parent = row
     end
 
+    local inventoryHeader = Instance.new("TextButton")
+    inventoryHeader.Name = "Inventory"
+    inventoryHeader.BackgroundTransparency = 1
+    inventoryHeader.Position = UDim2.fromOffset(14, 420)
+    inventoryHeader.Size = UDim2.fromOffset(292, 26)
+    inventoryHeader.Font = Enum.Font.GothamBold
+    inventoryHeader.Text = "Inventory"
+    inventoryHeader.TextColor3 = Color3.fromRGB(180, 235, 255)
+    inventoryHeader.TextSize = 18
+    inventoryHeader.TextXAlignment = Enum.TextXAlignment.Left
+    inventoryHeader.Parent = frame
+
+    local inventory = Instance.new("Frame")
+    inventory.Name = "InventoryContent"
+    inventory.BackgroundTransparency = 1
+    inventory.Position = UDim2.fromOffset(14, 456)
+    inventory.Size = UDim2.fromOffset(292, 230)
+    inventory.Parent = frame
+
+    local count = Instance.new("TextLabel")
+    count.Name = "Count"
+    count.BackgroundTransparency = 1
+    count.Position = UDim2.fromOffset(0, 0)
+    count.Size = UDim2.fromOffset(140, 22)
+    count.Font = Enum.Font.GothamMedium
+    count.Text = "0/100"
+    count.TextColor3 = Color3.fromRGB(230, 240, 255)
+    count.TextSize = 14
+    count.TextXAlignment = Enum.TextXAlignment.Left
+    count.Parent = inventory
+
+    local inventoryEquipBest = Instance.new("TextButton")
+    inventoryEquipBest.Name = "EquipBestButton"
+    inventoryEquipBest.AnchorPoint = Vector2.new(1, 0)
+    inventoryEquipBest.Position = UDim2.new(1, 0, 0, 0)
+    inventoryEquipBest.Size = UDim2.fromOffset(112, 28)
+    inventoryEquipBest.BackgroundColor3 = Color3.fromRGB(81, 190, 120)
+    inventoryEquipBest.BorderSizePixel = 0
+    inventoryEquipBest.Font = Enum.Font.GothamBold
+    inventoryEquipBest.Text = "Equip Best"
+    inventoryEquipBest.TextColor3 = Color3.fromRGB(255, 255, 255)
+    inventoryEquipBest.TextSize = 12
+    inventoryEquipBest.Parent = inventory
+
+    local list = Instance.new("ScrollingFrame")
+    list.Name = "List"
+    list.BackgroundTransparency = 1
+    list.BorderSizePixel = 0
+    list.CanvasSize = UDim2.fromOffset(0, 0)
+    list.Position = UDim2.fromOffset(0, 36)
+    list.ScrollBarThickness = 6
+    list.Size = UDim2.fromOffset(292, 190)
+    list.Parent = inventory
+
     local scanSound = Instance.new("Sound")
     scanSound.Name = "ScanSound"
     scanSound.Volume = 0.25

@@ -4,9 +4,11 @@ local Net = require(ReplicatedStorage.Packages.Net)
 
 return Net.CreateDefinitions({
     alienRollResult = Net.Definitions.ServerToClientEvent(),
+    alienInventoryActionResult = Net.Definitions.ServerToClientEvent(),
     broadcast = Net.Definitions.ServerToClientEvent(),
     requestAlienRoll = Net.Definitions.ClientToServerEvent(),
     requestEquipBestAliens = Net.Definitions.ClientToServerEvent(),
+    requestAlienInventoryAction = Net.Definitions.ClientToServerEvent(),
     requestUpgradePurchase = Net.Definitions.ClientToServerEvent(),
     start = Net.Definitions.ClientToServerEvent(),
     upgradePurchaseResult = Net.Definitions.ServerToClientEvent(),

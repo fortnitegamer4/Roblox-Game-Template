@@ -16,6 +16,7 @@ local Gui = GuiController.Guis.AlienCrew
 local Frame = Gui.Frame
 local ScannerContent = Frame.ScannerContent
 local UpgradesContent = Frame.UpgradesContent
+local InventoryContent = Frame.InventoryContent
 
 local Local = {}
 local Shared = {}
@@ -26,6 +27,7 @@ local currentCooldown = AlienConfig.BaseScanCooldown
 local cooldownReadyAt = 0
 local isScannerExpanded = true
 local isUpgradesExpanded = true
+local isInventoryExpanded = true
 
 local function getCrewPower(alienState): number
     if not alienState then
@@ -91,6 +93,7 @@ end
 function Local.UpdateLayout()
     ScannerContent.Visible = isScannerExpanded
     UpgradesContent.Visible = isUpgradesExpanded
+    InventoryContent.Visible = isInventoryExpanded
 
     local y = 10
     Frame.Scanner.Position = UDim2.fromOffset(14, y)
@@ -109,7 +112,165 @@ function Local.UpdateLayout()
         y += 136
     end
 
+    Frame.Inventory.Position = UDim2.fromOffset(14, y)
+    y += 36
+
+    if isInventoryExpanded then
+        InventoryContent.Position = UDim2.fromOffset(14, y)
+        y += 238
+    end
+
     Frame.Size = UDim2.fromOffset(320, y + 14)
+end
+
+function Local.GetInventoryRows(alienState)
+    local rows = {}
+    if not alienState then
+        return rows
+    end
+
+    local equippedSet = {}
+
+    for _, uid in alienState.EquippedAliens do
+        equippedSet[uid] = true
+    end
+
+    for uid, ownedAlien in alienState.AlienInventory do
+        local definition = AlienConfig.ById[ownedAlien.AlienId]
+
+        if definition then
+            table.insert(rows, {
+                UID = uid,
+                Definition = definition,
+                Equipped = equippedSet[uid] == true,
+                Locked = ownedAlien.Locked == true,
+            })
+        end
+    end
+
+    table.sort(rows, function(left, right)
+        if left.Equipped ~= right.Equipped then
+            return left.Equipped
+        end
+
+        if left.Definition.Power == right.Definition.Power then
+            return (AlienConfig.RarityOrder[left.Definition.Rarity] or 0) > (AlienConfig.RarityOrder[right.Definition.Rarity] or 0)
+        end
+
+        return left.Definition.Power > right.Definition.Power
+    end)
+
+    return rows
+end
+
+function Local.RenderInventory(requestAlienInventoryAction)
+    local list = InventoryContent.List
+
+    for _, child in list:GetChildren() do
+        child:Destroy()
+    end
+
+    local rows = Local.GetInventoryRows(currentAlienState)
+    InventoryContent.Count.Text = `{#rows}/{AlienConfig.MaxAlienInventory}`
+    list.CanvasSize = UDim2.fromOffset(0, math.max(#rows * 88, list.AbsoluteSize.Y))
+
+    for index, rowData in rows do
+        local row = Instance.new("Frame")
+        row.Name = rowData.UID
+        row.BackgroundColor3 = if rowData.Equipped then Color3.fromRGB(27, 42, 52) else Color3.fromRGB(18, 22, 32)
+        row.BackgroundTransparency = 0.15
+        row.BorderSizePixel = 0
+        row.Position = UDim2.fromOffset(0, (index - 1) * 88)
+        row.Size = UDim2.fromOffset(284, 80)
+        row.Parent = list
+
+        local name = Instance.new("TextLabel")
+        name.Name = "Name"
+        name.BackgroundTransparency = 1
+        name.Position = UDim2.fromOffset(8, 6)
+        name.Size = UDim2.fromOffset(150, 18)
+        name.Font = Enum.Font.GothamBold
+        name.Text = rowData.Definition.DisplayName
+        name.TextColor3 = Color3.fromRGB(255, 255, 255)
+        name.TextSize = 13
+        name.TextXAlignment = Enum.TextXAlignment.Left
+        name.Parent = row
+
+        local detail = Instance.new("TextLabel")
+        detail.Name = "Detail"
+        detail.BackgroundTransparency = 1
+        detail.Position = UDim2.fromOffset(8, 25)
+        detail.Size = UDim2.fromOffset(164, 34)
+        detail.Font = Enum.Font.Gotham
+        detail.Text = `{rowData.Definition.Rarity} | 1 in {rowData.Definition.BaseOdds}\n{rowData.Definition.Power} Power`
+        detail.TextColor3 = Color3.fromRGB(210, 220, 235)
+        detail.TextSize = 12
+        detail.TextXAlignment = Enum.TextXAlignment.Left
+        detail.TextYAlignment = Enum.TextYAlignment.Top
+        detail.Parent = row
+
+        local state = Instance.new("TextLabel")
+        state.Name = "State"
+        state.BackgroundTransparency = 1
+        state.Position = UDim2.fromOffset(8, 58)
+        state.Size = UDim2.fromOffset(164, 16)
+        state.Font = Enum.Font.GothamMedium
+        state.Text = `{if rowData.Equipped then "Equipped" else "Stored"} | {if rowData.Locked then "Locked" else "Unlocked"}`
+        state.TextColor3 = if rowData.Locked then Color3.fromRGB(255, 220, 120) else Color3.fromRGB(170, 255, 190)
+        state.TextSize = 11
+        state.TextXAlignment = Enum.TextXAlignment.Left
+        state.Parent = row
+
+        local equip = Instance.new("TextButton")
+        equip.Name = "Equip"
+        equip.Position = UDim2.fromOffset(180, 6)
+        equip.Size = UDim2.fromOffset(96, 20)
+        equip.BackgroundColor3 = Color3.fromRGB(49, 132, 255)
+        equip.BorderSizePixel = 0
+        equip.Font = Enum.Font.GothamBold
+        equip.Text = if rowData.Equipped then "Unequip" else "Equip"
+        equip.TextColor3 = Color3.fromRGB(255, 255, 255)
+        equip.TextSize = 11
+        equip.Parent = row
+
+        local lock = Instance.new("TextButton")
+        lock.Name = "Lock"
+        lock.Position = UDim2.fromOffset(180, 30)
+        lock.Size = UDim2.fromOffset(96, 20)
+        lock.BackgroundColor3 = Color3.fromRGB(81, 190, 120)
+        lock.BorderSizePixel = 0
+        lock.Font = Enum.Font.GothamBold
+        lock.Text = if rowData.Locked then "Unlock" else "Lock"
+        lock.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lock.TextSize = 11
+        lock.Parent = row
+
+        local delete = Instance.new("TextButton")
+        delete.Name = "Delete"
+        delete.Position = UDim2.fromOffset(180, 54)
+        delete.Size = UDim2.fromOffset(96, 20)
+        delete.BackgroundColor3 = Color3.fromRGB(205, 72, 72)
+        delete.BorderSizePixel = 0
+        delete.Font = Enum.Font.GothamBold
+        delete.Text = "Delete"
+        delete.TextColor3 = Color3.fromRGB(255, 255, 255)
+        delete.TextSize = 11
+        delete.Parent = row
+
+        local uid = rowData.UID
+
+        equip.Activated:Connect(function()
+            requestAlienInventoryAction:SendToServer(if rowData.Equipped then "Unequip" else "Equip", uid)
+        end)
+
+        lock.Activated:Connect(function()
+            requestAlienInventoryAction:SendToServer(if rowData.Locked then "Unlock" else "Lock", uid)
+        end)
+
+        delete.Activated:Connect(function()
+            requestAlienInventoryAction:SendToServer("Delete", uid)
+        end)
+    end
 end
 
 function Local.UpdateUpgradeRows()
@@ -188,8 +349,10 @@ end
 function Shared.OnStart()
     local requestAlienRoll = Remotes.Client:Get("requestAlienRoll") :: Net.ClientSenderEvent
     local requestEquipBestAliens = Remotes.Client:Get("requestEquipBestAliens") :: Net.ClientSenderEvent
+    local requestAlienInventoryAction = Remotes.Client:Get("requestAlienInventoryAction") :: Net.ClientSenderEvent
     local requestUpgradePurchase = Remotes.Client:Get("requestUpgradePurchase") :: Net.ClientSenderEvent
     local alienRollResult = Remotes.Client:Get("alienRollResult") :: Net.ClientListenerEvent
+    local alienInventoryActionResult = Remotes.Client:Get("alienInventoryActionResult") :: Net.ClientListenerEvent
     local upgradePurchaseResult = Remotes.Client:Get("upgradePurchaseResult") :: Net.ClientListenerEvent
 
     ScannerContent.ScanCost.Text = `Scan Cost: {AlienConfig.ScanCost} Fuel`
@@ -215,6 +378,7 @@ function Shared.OnStart()
         ScannerContent.FuelPerSecond.Text = `Fuel/sec: {formatNumber(fuelPerSecond)}`
         Local.UpdateScanState()
         Local.UpdateUpgradeRows()
+        Local.RenderInventory(requestAlienInventoryAction)
     end)
 
     Frame.Scanner.Activated:Connect(function()
@@ -224,6 +388,11 @@ function Shared.OnStart()
 
     Frame.Upgrades.Activated:Connect(function()
         isUpgradesExpanded = not isUpgradesExpanded
+        Local.UpdateLayout()
+    end)
+
+    Frame.Inventory.Activated:Connect(function()
+        isInventoryExpanded = not isInventoryExpanded
         Local.UpdateLayout()
     end)
 
@@ -240,6 +409,10 @@ function Shared.OnStart()
         requestEquipBestAliens:SendToServer()
     end)
 
+    InventoryContent.EquipBestButton.Activated:Connect(function()
+        requestEquipBestAliens:SendToServer()
+    end)
+
     for _, upgradeId in UpgradeConfig.Order do
         local row = UpgradesContent:FindFirstChild(upgradeId)
 
@@ -251,6 +424,16 @@ function Shared.OnStart()
     end
 
     alienRollResult:Connect(Local.ShowRollResult)
+    alienInventoryActionResult:Connect(function(result)
+        if result.Success then
+            ScannerContent.Status.Text = "Inventory updated"
+            ScannerContent.Status.TextColor3 = Color3.fromRGB(170, 255, 190)
+            return
+        end
+
+        ScannerContent.Status.Text = result.Error or "Inventory action failed."
+        ScannerContent.Status.TextColor3 = Color3.fromRGB(255, 130, 130)
+    end)
     upgradePurchaseResult:Connect(Local.ShowUpgradeResult)
 
     task.spawn(function()

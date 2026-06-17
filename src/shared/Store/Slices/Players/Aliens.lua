@@ -27,6 +27,8 @@ export type AliensActions = {
     addAlien: (playerId: string, alien: PlayerData.OwnedAlien) -> (),
     incrementUpgradeLevel: (playerId: string, upgradeId: string) -> (),
     markFreeScanUsed: (playerId: string) -> (),
+    removeAlien: (playerId: string, uid: string) -> (),
+    setAlienLocked: (playerId: string, uid: string, locked: boolean) -> (),
     setEquippedAliens: (playerId: string, equippedAliens: { string }) -> (),
     setRollSpeedLevel: (playerId: string, level: number) -> (),
 }
@@ -90,6 +92,46 @@ local aliensSlice: AliensProducer = Reflex.createProducer({}, {
             end
 
             return Sift.Dictionary.set(playerAliens, "HasUsedFreeScan", true)
+        end)
+    end,
+
+    removeAlien = function(state, playerId: string, uid: string)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            local inventory = Sift.Dictionary.removeKey(playerAliens.AlienInventory, uid)
+            local equipped = {}
+
+            for _, equippedUid in playerAliens.EquippedAliens do
+                if equippedUid ~= uid then
+                    table.insert(equipped, equippedUid)
+                end
+            end
+
+            return Sift.Dictionary.merge(playerAliens, {
+                AlienInventory = inventory,
+                EquippedAliens = equipped,
+            })
+        end)
+    end,
+
+    setAlienLocked = function(state, playerId: string, uid: string, locked: boolean)
+        return Sift.Dictionary.update(state, playerId, function(playerAliens: PlayerAlienState?)
+            if not playerAliens then
+                return
+            end
+
+            local ownedAlien = playerAliens.AlienInventory[uid]
+            if not ownedAlien then
+                return playerAliens
+            end
+
+            local updatedAlien = Sift.Dictionary.set(ownedAlien, "Locked", locked)
+            local inventory = Sift.Dictionary.set(playerAliens.AlienInventory, uid, updatedAlien)
+
+            return Sift.Dictionary.set(playerAliens, "AlienInventory", inventory)
         end)
     end,
 

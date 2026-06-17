@@ -25,6 +25,16 @@ local function getCooldown(alienState): number
     return AlienConfig.GetScanCooldown(alienState.RollSpeedLevel or 0)
 end
 
+local function getInventoryCount(alienState): number
+    local count = 0
+
+    for _ in alienState.AlienInventory do
+        count += 1
+    end
+
+    return count
+end
+
 local function getLuckMultiplier(player): number
     local alienState = getAlienState(player)
     local luckLevel = if alienState then alienState.LuckLevel else 0
@@ -85,6 +95,18 @@ function Shared.RollAlien(player: Player)
             Reason = "Cooldown",
             CooldownRemaining = cooldownRemaining,
             Cooldown = getCooldown(alienState),
+            Cost = AlienConfig.ScanCost,
+        }
+    end
+
+    local inventoryCount = getInventoryCount(alienState)
+    if inventoryCount >= AlienConfig.MaxAlienInventory then
+        return {
+            Success = false,
+            Error = "Alien inventory is full.",
+            Reason = "InventoryFull",
+            InventoryCount = inventoryCount,
+            InventoryCapacity = AlienConfig.MaxAlienInventory,
             Cost = AlienConfig.ScanCost,
         }
     end

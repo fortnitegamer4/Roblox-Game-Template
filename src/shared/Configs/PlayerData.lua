@@ -2,6 +2,7 @@ export type OwnedAlien = {
     UID: string,
     AlienId: string,
     Variant: string?,
+    Locked: boolean?,
 }
 
 export type AlienInventory = {
